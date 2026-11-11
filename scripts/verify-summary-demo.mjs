@@ -1,0 +1,75 @@
+import assert from 'node:assert/strict'
+import { registerHooks } from 'node:module'
+registerHooks({ resolve(specifier, context, next) {
+  try { return next(specifier, context) } catch (error) {
+    if (specifier.startsWith('.') && !specifier.endsWith('.ts')) return next(`${specifier}.ts`, context)
+    throw error
+  }
+} })
+const storage = () => {
+  const values = new Map()
+  return { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, String(value)), removeItem: key => values.delete(key) }
+}
+globalThis.localStorage = storage()
+globalThis.sessionStorage = storage()
+const { seedAdditionalDemoUsers, seedRoleRankingDemo, seedSummaryDemo } = await import('../src/auth/seedSummaryDemo.ts')
+const { seedActivityHistoryDemo } = await import('../src/auth/seedActivityHistoryDemo.ts')
+const { getState, DEMO_PASSWORD } = await import('../src/auth/store.ts')
+const { signIn, currentSession } = await import('../src/auth/session.ts')
+const { adminSummary, usersByRole, timeBuckets, countByBucket, signInSeries } = await import('../src/auth/dashboardMetrics.ts')
+const initialCount = getState().accounts.length
+seedSummaryDemo()
+seedAdditionalDemoUsers()
+seedRoleRankingDemo()
+seedActivityHistoryDemo()
+assert.equal(getState().accounts.length, initialCount)
+assert.equal(getState().loginAttempts.length, 0)
+assert.equal((await signIn({ email: 'admin@demo.com', password: DEMO_PASSWORD, remember: false })).ok, true)
+const sessionId = currentSession().id
+seedSummaryDemo()
+const summary = adminSummary(getState(), Date.now())
+assert.equal(summary.totalUsers, initialCount + 3)
+assert.equal(summary.activeSessions, 3)
+assert.equal(summary.failedSignIns24h, 7)
+assert.equal(summary.lockedAccounts, 1)
+seedSummaryDemo()
+assert.equal(getState().accounts.length, initialCount + 3)
+assert.equal(currentSession().id, sessionId)
+seedAdditionalDemoUsers()
+assert.equal(getState().accounts.length, initialCount + 15)
+const added = getState().accounts.filter(account => account.email.startsWith('team-demo.'))
+assert.equal(added.length, 12)
+assert.equal(new Set(added.map(account => account.role)).size, 4)
+assert.equal(new Set(added.map(account => account.status)).size, 3)
+seedAdditionalDemoUsers()
+assert.equal(getState().accounts.length, initialCount + 15)
+assert.equal(currentSession().id, sessionId)
+assert.equal(adminSummary(getState(), Date.now()).activeSessions, 3)
+seedRoleRankingDemo()
+const ranked = usersByRole(getState().accounts).sort((a, b) => b.count - a.count)
+assert.deepEqual(ranked.map(row => row.role), ['Ground Crew', 'Warehouse Operations Manager', 'Event Manager', 'Executive'])
+assert.deepEqual(ranked.map(row => row.count), [7, 6, 5, 4])
+const rankedCount = getState().accounts.length
+seedRoleRankingDemo()
+assert.equal(getState().accounts.length, rankedCount)
+assert.equal(currentSession().id, sessionId)
+const beforeHistory = adminSummary(getState(), Date.now())
+const attemptsBefore = getState().loginAttempts.length
+seedActivityHistoryDemo()
+assert.deepEqual(adminSummary(getState(), Date.now()), beforeHistory)
+assert.ok(getState().loginAttempts.length > attemptsBefore)
+const fixtures = getState().loginAttempts.filter(attempt => attempt.email === 'activity-history-demo@example.test')
+assert.equal(new Set(fixtures.map(attempt => attempt.result)).size, 3)
+assert.ok(fixtures.every(attempt => attempt.at < Date.now() - 48 * 3_600_000))
+for (const attempt of fixtures) assert.equal(getState().audit.filter(event => event.correlationId === attempt.correlationId).length, 1)
+const historyLength = getState().loginAttempts.length
+seedActivityHistoryDemo()
+assert.equal(getState().loginAttempts.length, historyLength)
+assert.ok(JSON.parse(localStorage.getItem('lumiere.demo.store')).activityHistoryDemoSeededAt)
+const monthBuckets = timeBuckets(Date.now(), 'day', 30)
+const monthAudit = countByBucket(getState().audit, monthBuckets, Date.now())
+const monthSignIns = signInSeries(getState().loginAttempts, monthBuckets, Date.now())
+assert.ok(monthAudit.filter(count => count > 0).length > 20)
+assert.ok(monthAudit.some(count => count === 0))
+for (const result of ['Success', 'Failed', 'Blocked']) assert.ok(monthSignIns[result].reduce((sum, count) => sum + count, 0) > 0)
+console.log('PASS: admin-only demo seed, live shared summary counts, idempotence, and existing-session preservation')
