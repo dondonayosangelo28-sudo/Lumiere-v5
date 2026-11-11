@@ -3111,13 +3111,35 @@ function CalendarView({
     [setDay, setMonth],
   )
 
-  const stepMonth = (delta: number) => {
-    const next = shiftMonth(month, delta)
-    setMonth(next)
-    setDay(dateKey(next))
-    setActivePopoverKey(null)
-    setSelectedBlock(null)
-  }
+  const stepMonth = useCallback(
+    (delta: number) => {
+      const pageY = window.scrollY
+      const gridY = gridScrollRef.current ? gridScrollRef.current.scrollTop : lastScrollPosRef.current.grid
+      scrollLockoutRef.current = true
+      pendingScrollHourRef.current = null
+
+      const next = shiftMonth(month, delta)
+      setMonth(next)
+      setDay(dateKey(next))
+      setActivePopoverKey(null)
+      setSelectedBlock(null)
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (gridScrollRef.current) {
+            gridScrollRef.current.scrollTop = gridY
+            lastScrollPosRef.current.grid = gridY
+          }
+          if (window.scrollY !== pageY) {
+            window.scrollTo({ top: pageY, behavior: "instant" })
+          }
+          lastScrollPosRef.current.page = pageY
+          scrollLockoutRef.current = false
+        })
+      })
+    },
+    [month, setMonth, setDay, setActivePopoverKey, setSelectedBlock],
+  )
 
   const selectedDateObj = useMemo(() => parseDate(day), [day])
   const weekDays = useMemo(() => mondayWeekDays(selectedDateObj), [selectedDateObj])
@@ -3175,6 +3197,7 @@ function CalendarView({
   }, [viewMode, scrollToHour])
 
   useEffect(() => {
+    if (pendingScrollHourRef.current !== null) return
     const prevGrid = lastScrollPosRef.current.grid
     const prevPage = lastScrollPosRef.current.page
     const timer = requestAnimationFrame(() => {
@@ -3188,7 +3211,7 @@ function CalendarView({
       }
     })
     return () => cancelAnimationFrame(timer)
-  }, [activePopoverKey])
+  }, [month, day, activePopoverKey])
 
   const handleAgendaItemClick = useCallback(
     (targetDate: string, startMin: number) => {
@@ -3404,7 +3427,14 @@ function CalendarView({
                 <button
                   type="button"
                   aria-label="Previous month"
-                  onClick={() => stepMonth(-1)}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    e.currentTarget.focus({ preventScroll: true })
+                  }}
+                  onClick={(e) => {
+                    e.currentTarget.focus({ preventScroll: true })
+                    stepMonth(-1)
+                  }}
                   className="grid size-7 place-items-center rounded-full border border-line text-muted-foreground transition-colors hover:bg-fg/10 hover:text-foreground"
                 >
                   <ChevronLeft size={14} strokeWidth={1.8} aria-hidden />
@@ -3412,7 +3442,14 @@ function CalendarView({
                 <button
                   type="button"
                   aria-label="Next month"
-                  onClick={() => stepMonth(1)}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    e.currentTarget.focus({ preventScroll: true })
+                  }}
+                  onClick={(e) => {
+                    e.currentTarget.focus({ preventScroll: true })
+                    stepMonth(1)
+                  }}
                   className="grid size-7 place-items-center rounded-full border border-line text-muted-foreground transition-colors hover:bg-fg/10 hover:text-foreground"
                 >
                   <ChevronRight size={14} strokeWidth={1.8} aria-hidden />
