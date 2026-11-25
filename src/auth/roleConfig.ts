@@ -3,27 +3,25 @@
 import {
   Bell,
   Boxes,
-  Camera,
   CalendarClock,
   ClipboardCheck,
   ClipboardList,
   Hammer,
   LayoutGrid,
-  MapPin,
   Package,
-  PackageSearch,
   Presentation,
   ScrollText,
   Shield,
   ShoppingCart,
+  Store,
   TriangleAlert,
   Truck,
   UsersRound,
   CalendarDays,
-  SearchCheck,
   type LucideIcon,
 } from 'lucide-react'
 import type { Role } from './store'
+import { resolveOperationsRoute } from '../operations/navigation-context'
 
 export interface RoleModule {
   key: string
@@ -47,20 +45,18 @@ export const roleModules: Record<Role, RoleModule[]> = {
     { key: 'asset-requests', label: 'Asset Library', icon: Package, description: 'Browse the sample stock catalog and pitch asset plans.' },
   ],
   'Warehouse Operations Manager': [
-    { key: 'asset-inventory', label: 'Asset Inventory', icon: Boxes, description: 'Track warehouse assets and availability.' },
-    { key: 'order-requests', label: 'Order Requests', icon: ClipboardList, description: 'Review incoming asset order requests.' },
-    { key: 'deficit-queue', label: 'Deficit Queue', icon: TriangleAlert, description: 'Resolve requests that exceed available stock.' },
-    { key: 'asset-acquisition', label: 'Asset Acquisition', icon: ShoppingCart, description: 'Plan purchases to cover asset deficits.' },
-    { key: 'custom-fabrication', label: 'Custom Fabrication', icon: Hammer, description: 'Coordinate custom-built assets.' },
-    { key: 'personnel-deployment', label: 'Personnel Deployment', icon: UsersRound, description: 'Assign crew to dispatches and events.' },
-    { key: 'damage-assessment', label: 'Damage Assessment', icon: PackageSearch, description: 'Assess assets returned with damage.' },
+    { key: 'events', label: 'Events', icon: ClipboardList, description: 'Manage event order requests, allocations, rentals, and stock deficits.' },
+    { key: 'asset-inventory', label: 'Asset Inventory', icon: Boxes, description: 'Track warehouse stock catalog, availability, and acquisitions.' },
+    { key: 'replenishment-deficits', label: 'Replenishment', icon: ShoppingCart, description: 'Manage event deficits, stockroom replenishment requests, acquisitions, and receipts.' },
+    { key: 'vendors', label: 'Vendors', icon: Store, description: 'Manage suppliers, lead times, contact details, and preferred-vendor status.' },
+    { key: 'crew-scheduling', label: 'Crew & Scheduling', icon: UsersRound, description: 'Manage event crew rosters, leads, schedules, and blockers.' },
+    { key: 'production', label: 'Production', icon: Hammer, description: 'Coordinate custom fabrication jobs, windows, estimates, and progress.' },
+    { key: 'verification', label: 'Verification', icon: ClipboardCheck, description: 'Inspect submitted custom builds against specs and release for loading.' },
+    { key: 'damage-missing-reports', label: 'Damage & Missing', icon: TriangleAlert, description: 'Review field damage and missing-item reports, evidence photos, and inventory resolutions.' },
+    { key: 'dispatch-returns', label: 'Dispatch & Returns', icon: Truck, description: 'Track outbound manifests, returns, reconciliation, and incident reports.' },
   ],
   'Ground Crew': [
-    { key: 'assigned-work', label: 'Assigned Work', icon: ClipboardCheck, description: 'See operational tasks assigned to you.' },
-    { key: 'dispatch-checks', label: 'Dispatch Loading Checks', icon: Truck, description: 'Confirm assets loaded for dispatch.' },
-    { key: 'venue-arrival', label: 'Venue Arrival Checks', icon: MapPin, description: 'Confirm assets on arrival at the venue.' },
-    { key: 'evidence-capture', label: 'Evidence Capture', icon: Camera, description: 'Capture photo evidence for checks.' },
-    { key: 'post-event-audits', label: 'Post-event Asset Audits', icon: SearchCheck, description: 'Audit assets after an event closes.' },
+    { key: 'my-work', label: 'My Work', icon: ClipboardCheck, description: 'View your production and event assignments and open event operations.' },
   ],
 }
 
@@ -83,7 +79,15 @@ export function canAccess(role: Role, route: string) {
   if (PROJECT_ROUTES.has(route)) return false
   if (SHARED_ROUTES.has(route)) return true
   if (role === 'System Admin') return ADMIN_ROUTES.has(route)
-  return roleModules[role].some((m) => `module-${m.key}` === route)
+  const resolved = resolveOperationsRoute(route)
+  return roleModules[role].some(
+    (m) => `module-${m.key}` === route || `module-${m.key}` === resolved.canonicalRoute,
+  )
 }
 
-export const moduleForRoute = (role: Role, route: string) => roleModules[role].find((m) => `module-${m.key}` === route)
+export const moduleForRoute = (role: Role, route: string) => {
+  const resolved = resolveOperationsRoute(route)
+  return roleModules[role].find(
+    (m) => `module-${m.key}` === route || `module-${m.key}` === resolved.canonicalRoute,
+  )
+}

@@ -27,12 +27,10 @@ supplement rather than replace those instructions.
 - **Verified:** audit baseline is the restore commit
   `45ea0e0` (`[restore] Use fixed Executive dashboard heading`).
   `EventAssets.tsx` is absent. Executive Event Asset Details currently resolves
-  to `ModulePlaceholder` through `RoleModulePage` in `src/pages/RoleViews.tsx`.
+  to `ModulePlaceholder` through `RoleModulePage` in `src/pages/dashboard/RoleViews.tsx`.
   Do not document or assume the earlier asset viewer exists in this version.
-- **Limited:** attempts to read `src/App.tsx` were redacted by the workspace
-  tools (`vault unavailable`). App-level theme persistence, public URL switching,
-  and route lifecycle details are therefore not independently verified in this
-  audit. Inspect that file when accessible before changing app-level wiring.
+- **Verified:** `src/App.tsx` orchestration, navigation extraction (`src/navigation.ts`), theme management (`src/theme.ts`), calendar date math (`src/components/ui/calendarDates.ts`), domain types (`src/types/project.ts`), operational state/api (`src/operations/`), and domain features (`src/features/event-manager/`, `src/features/warehouse/`, `src/features/ground-crew/`). App-level routing, theme toggling, and prototype tools exclusion in production are independently verified.
+- **Frontend manual verification:** Phases 1–4 folder-only migration is complete and verified in the live frontend (authentication, role navigation, light/dark themes, responsive shell, dashboard calculations, warehouse workflow submodules, event manager calendar, pitch editor, mood board, and rental flows). The large-file decompositions (`GroundCrewModules.tsx`, `EventManager.tsx`, `Editor.tsx`, `MoodBoardCanvas.tsx`, and `operations/store.ts`) are completed, passed all 13 automated verification suites and typecheck, and their live frontend interactions are attributed to user manual verification in the running browser.
 - **Not performed:** browser screenshots, computed-style measurements, or
   viewport/keyboard interaction tests. Values here are source-derived, not
   claims of successful visual regression testing.
@@ -49,7 +47,7 @@ supplement rather than replace those instructions.
    imagined generic dashboard. Where this audit and live source diverge, verify
    the source and update documentation only within the authorized task.
 3. **Reuse existing components, styles, and design tokens.** Start with
-   `src/components/ui.tsx`, `AdminKit.tsx`, `Dropdown.tsx`, `DatePicker.tsx`,
+   `src/components/ui/ui.tsx`, `AdminKit.tsx`, `Dropdown.tsx`, `DatePicker.tsx`,
    `Modal.tsx`, `Drawer.tsx`, and the nearest existing page.
 4. **Match the exact established colors, typography, spacing, sizing, and
    component styling.** Inter Variable, neutral surfaces, pill actions,
@@ -109,21 +107,34 @@ supplement rather than replace those instructions.
 
 | Path | Responsibility |
 | --- | --- |
-| `src/App.tsx` | Application orchestration; inspect directly before wiring changes (audit access limited) |
+| `src/App.tsx` | Application orchestration, role route switching, and dev-only PrototypeTools lazy load |
+| `src/navigation.ts` | Top-level Route definitions, URL hash token parsing, useAppNavigation hook |
+| `src/theme.ts` | Theme state hook and documentElement dark class synchronization |
 | `src/index.css` | Font imports, both token families, scoped overrides, animation utilities |
-| `src/components/Shell.tsx` | `Route`, role navigation, logo, top bar, sidebar, shell context |
-| `src/components/NavigationContext.ts` | Current route/go context and breadcrumb map |
-| `src/components/adminNavigation.ts` | Typed admin navigation/filter intents |
-| `src/components/ui.tsx` | Core presentation primitives and `cx` |
-| `src/components/AdminKit.tsx` | Admin field styles, filters, paging, skeleton/empty rows, feedback |
-| `src/components/AuthShell.tsx` | Public auth frame, fields, password UI, notices, auth buttons |
-| `src/components/OverlayLayer.tsx` | Shared portal stack, inert background, scroll lock, focus/Escape |
-| `src/components/StatCards/` | Reorderable summary groups and `StatCardData` |
-| `src/pages/` | Page components and their private/domain-local helpers |
-| `src/auth/` | Browser prototype store, sessions, mock service, policies, metric selectors, demo fixtures |
+| `src/components/layout/Shell.tsx` | Route, role navigation, logo, top bar, sidebar, shell context |
+| `src/components/layout/NavigationContext.ts` | Current route/go context and breadcrumb map |
+| `src/components/admin/adminNavigation.ts` | Typed admin navigation/filter intents |
+| `src/components/ui/calendarDates.ts` | Shared calendar date math, month shifting, and formatting |
+| `src/components/ui/ui.tsx` | Core presentation primitives and cx |
+| `src/components/admin/AdminKit.tsx` | Admin field styles, filters, paging, skeleton/empty rows, feedback |
+| `src/components/auth/AuthShell.tsx` | Public auth frame, fields, password UI, notices, auth buttons |
+| `src/components/overlay/OverlayLayer.tsx` | Shared portal stack, inert background, scroll lock, focus/Escape |
+| `src/components/dashboard/StatCards/` | Reorderable summary groups and StatCardData |
+| `src/features/event-manager/` | Event Manager studio, models, and subdirectories (`calendar/`, `pitch-editor/`, `mood-board/`, `rentals/`) |
+| `src/features/warehouse/` | Warehouse operations dashboard, route router, and submodules (`modules/`) |
+| `src/features/ground-crew/` | Ground Crew dashboard summary, dispatcher, shared helpers, and workflow modules |
+| `src/operations/` | Operations store, domain models, and API client adapters |
+| `src/pages/auth/` | Public authentication views (Login, SetPassword, ForgotPassword) |
+| `src/pages/admin/` | Admin views (Accounts, Security, AuditLogs) |
+| `src/pages/dashboard/` | Role and overview dashboards (Overview, OverviewExtras, AdminDashboardCards, RoleViews) |
+| `src/pages/settings/` | User settings views (Settings) |
+| `src/pages/projects/` | Projects views (Projects) |
+| `src/auth/` | Browser prototype store, sessions, mock service, policies |
+| `src/dashboard/` | Dashboard metrics selectors, summary snapshots, comparison trends, and demo seeds |
+| `src/types/project.ts` | Domain models and status types for projects |
 | `src/data.ts` | Project fixtures, quick-task fixtures, legacy sample role data |
-| `src/lib/utils.ts` | Re-export of `cn` from the installed package |
-| `public/lumiere-logo.png` | Existing wordmark; rendered with `dark:invert` |
+| `src/lib/utils.ts` | Re-export of cn from the installed package |
+| `public/lumiere-logo.png` | Existing wordmark; rendered with dark:invert |
 | `scripts/verify-*.mjs` | Standalone data/auth/metric regression scripts |
 | `docs/` | Existing prototype logging, history, and snapshot notes |
 
@@ -166,18 +177,18 @@ as required by `AGENTS.md`.
 
 | Page family | Actual source | What to inspect before related work |
 | --- | --- | --- |
-| Admin dashboard | `pages/Overview.tsx`, `AdminDashboardCards.tsx` | Scoped dark cards, hero, summaries, SVG charts, range controls |
-| Executive/role dashboards | `pages/RoleViews.tsx` | Executive hero and fixed heading; reorderable role module cards |
-| Accounts / Deleted Users | `pages/Accounts.tsx` | Filters, wide table, status badges, compact details modal, create/edit drawers |
-| Security | `pages/Security.tsx` | Compact CSS tabs, semantic panels, filters, tables, confirmations |
-| Audit Logs | `pages/AuditLogs.tsx` | Explicit filter submission, date validation, read-only detail drawer |
-| Projects / Deleted Projects | `pages/Projects.tsx` | Different table density, local filters, modal forms, show-more behavior |
-| Recent Projects | `pages/OverviewExtras.tsx` | Event Manager card, paging, CSV/image export and project dialogs |
-| Settings | `pages/Settings.tsx` | Left navigation card, profile edit mode, password form, local toggles |
-| Login | `pages/Login.tsx` | Login-specific dark surfaces, custom door illustration, social demo notices |
-| Invitation | `pages/SetPassword.tsx` | Loading, valid/expired/invalid/used invite, retry, completion states |
-| Password recovery | `pages/ForgotPassword.tsx` | Identify → six-digit OTP → password reset → done |
-| Role module placeholders | `pages/RoleViews.tsx` | Existing centered “Coming soon” card, not a completed operational workflow |
+| Admin dashboard | `pages/dashboard/Overview.tsx`, `AdminDashboardCards.tsx` | Scoped dark cards, hero, summaries, SVG charts, range controls |
+| Executive/role dashboards | `pages/dashboard/RoleViews.tsx` | Executive hero and fixed heading; reorderable role module cards |
+| Accounts / Deleted Users | `pages/admin/Accounts.tsx` | Filters, wide table, status badges, compact details modal, create/edit drawers |
+| Security | `pages/admin/Security.tsx` | Compact CSS tabs, semantic panels, filters, tables, confirmations |
+| Audit Logs | `pages/admin/AuditLogs.tsx` | Explicit filter submission, date validation, read-only detail drawer |
+| Projects / Deleted Projects | `pages/projects/Projects.tsx` | Different table density, local filters, modal forms, show-more behavior |
+| Recent Projects | `pages/dashboard/OverviewExtras.tsx` | Event Manager card, paging, CSV/image export and project dialogs |
+| Settings | `pages/settings/Settings.tsx` | Left navigation card, profile edit mode, password form, local toggles |
+| Login | `pages/auth/Login.tsx` | Login-specific dark surfaces, custom door illustration, social demo notices |
+| Invitation | `pages/auth/SetPassword.tsx` | Loading, valid/expired/invalid/used invite, retry, completion states |
+| Password recovery | `pages/auth/ForgotPassword.tsx` | Identify → six-digit OTP → password reset → done |
+| Role module placeholders | `pages/dashboard/RoleViews.tsx` | Existing centered “Coming soon” card, not a completed operational workflow |
 
 ## Practical implementation procedure
 

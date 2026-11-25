@@ -1,21 +1,41 @@
+import type { VenueLocation } from "../../operations/venue-location"
+export type { VenueLocation }
 export interface ReplenishmentRequirement { id: string; eventId: string; assetId: string; start: string; end: string; requested: number; available: number; shortage: number; threshold: number; reason: 'low_stock' | 'shortage'; status: 'pending' }
-export interface Pin { id: string; title: string; image?: string; text?: string; source?: string; x: number; y: number; width: number; rotation: number; page?: number; kind?: 'image' | 'text' | 'sticky' | 'rect' | 'circle' | 'line' | 'draw' | 'triangle' | 'diamond' | 'star' | 'arrow' | 'frame'; height?: number; fontSize?: number; fontFamily?: string; bold?: boolean; italic?: boolean; align?: 'left' | 'center' | 'right'; color?: string; fill?: string; opacity?: number; locked?: boolean; hidden?: boolean; flipX?: boolean; flipY?: boolean; points?: number[]; radius?: number; stroke?: string; strokeWidth?: number; shadow?: boolean; letterSpacing?: number; lineHeight?: number; uppercase?: boolean; adjust?: { brightness?: number; contrast?: number; saturate?: number; grayscale?: number; blur?: number }; bind?: string }
+export interface Pin { id: string; title: string; image?: string; text?: string; source?: string; x: number; y: number; width: number; rotation: number; page?: number; kind?: 'image' | 'text' | 'sticky' | 'rect' | 'circle' | 'line' | 'draw' | 'triangle' | 'diamond' | 'star' | 'arrow' | 'frame'; height?: number; fontSize?: number; fontFamily?: string; fontWeight?: number; textStyle?: string; bold?: boolean; italic?: boolean; align?: 'left' | 'center' | 'right'; color?: string; fill?: string; opacity?: number; locked?: boolean; hidden?: boolean; flipX?: boolean; flipY?: boolean; points?: number[]; radius?: number; stroke?: string; strokeWidth?: number; shadow?: boolean; letterSpacing?: number; lineHeight?: number; uppercase?: boolean; adjust?: { brightness?: number; contrast?: number; saturate?: number; grayscale?: number; blur?: number }; bind?: string }
 export interface Requirement { assetId: string; quantity: number; manualQuantity?: number; boardQuantity?: number; stockConfirmation?: string }
-export interface CustomItemRequirement { id: string; name: string; quantity: number; dimensions: string; materials: string; colors: string; finish: string; instructions: string; referenceImages: string[] }
+export interface CustomItemRequirement { id: string; name: string; quantity: number; dimensions: string; heightCm?: number; widthCm?: number; depthCm?: number; materials: string; colors: string; finish: string; instructions: string; referenceImages: string[] }
 export interface Rental { id: string; name: string; entryType?: "supplier"; vendorName?: string; vendorId?: string; itemId?: string; itemName?: string; contact?: string; directToVenue?: boolean; bookingReference?: string; confirmationStatus?: "Pending Confirmation" | "Confirmed"; supplierType?: string; note?: string; notes?: string; snapshot?: { itemName: string; vendorCompany: string; supplierType: string }; quantity: number; optional: boolean; selected: boolean }
-export interface Brief { title: string; client: string; phone?: string; clientEmail?: string; start: string; end: string; pax: number; venue: string; theme: string; estimatedBudget?: number; notes: string; pins: Pin[]; requirements: Requirement[]; customItems?: CustomItemRequirement[]; replenishments?: ReplenishmentRequirement[]; rentals: Rental[]; boardPages?: { title: string; background: string }[]; registeredTheme?: { id: string; name: string; category: string; description: string; cover?: string; palette: string[] } }
-export interface Project { id: string; brief: Brief; status: 'draft' | 'ready' | 'approved'; revision: number; processedBy: string; createdAt: string; updatedAt: string; approvedAt?: string; approvalNote?: string }
+export interface Brief { title: string; client: string; phone?: string; clientEmail?: string; start: string; end: string; pax: number; venue: string; venueLocation?: VenueLocation; theme: string; cover?: string; estimatedBudget?: number; notes: string; pins: Pin[]; requirements: Requirement[]; customItems?: CustomItemRequirement[]; replenishments?: ReplenishmentRequirement[]; rentals: Rental[]; boardPages?: { title: string; background: string }[]; registeredTheme?: { id: string; name: string; category: string; description: string; cover?: string; palette: string[] } }
+export interface Project { id: string; brief: Brief; status: 'draft' | 'ready' | 'approved' | 'cancelled'; revision: number; processedBy: string; createdAt: string; updatedAt: string; approvedAt?: string; approvalNote?: string }
 export interface Availability { assetId: string; available: number; deficit: number; requested: number }
 // Bundled photography is from Unsplash, stored locally under public/event-manager-images.
 export const themes = [
-  { id: 'garden', name: 'Garden romance', category: 'Wedding', image: '/event-manager-images/garden.jpg', alt: 'Candlelit reception hall with chandeliers, columns and dressed banquet tables', description: 'Soft florals. Natural textures. A little magic.', palette: ['#d6c7b3','#f0e7db','#7a8069'], pins: ['Candlelit tables', 'Garden-inspired florals', 'Natural linen textures'] },
-  { id: 'christmas', name: 'A golden Christmas', category: 'Christmas', image: '/event-manager-images/christmas.jpg', alt: 'Christmas dinner table with gold velvet chairs, tall black candles, reindeer figures and warm fairy lights', description: 'Evergreen details and the warmth of gathering.', palette: ['#5e644c','#c6a977','#f5efe5'], pins: ['Evergreen arrangements', 'Warm candlelight', 'Gold details'] },
-  { id: 'birthday', name: 'A reason to celebrate', category: 'Birthday', image: '/event-manager-images/birthday.jpg', alt: 'Overhead view of a birthday table with party hats, polka-dot plates, a sprinkle cake and confetti', description: 'Playful moments, made personal.', palette: ['#c99d87','#efe0ce','#998c99'], pins: ['Celebration backdrop', 'Personalized details', 'A welcoming entrance'] },
-  { id: 'newyear', name: 'After the last midnight', category: 'New Year', image: '/event-manager-images/newyear.jpg', alt: 'Champagne bottle uncorking beside a bright golden sparkler against a dark background', description: 'Statement lights. Unforgettable beginnings.', palette: ['#353a34','#b99b68','#e9decb'], pins: ['Statement lighting', 'Midnight celebration', 'Reflective accents'] },
-  { id: 'corporate', name: 'Beautifully on brand', category: 'Corporate', image: '/event-manager-images/corporate.jpg', alt: 'Speaker on a lit stage addressing a full audience beneath a timber-beamed ceiling', description: 'Considered spaces for meaningful connections.', palette: ['#857467','#d6c6af','#454c43'], pins: ['Brand inspiration', 'Stage backdrop', 'Guest experience'] },
+  { id: 'garden', name: 'Garden romance', category: 'Wedding', image: '/event-manager-images/garden.jpg', alt: 'Candlelit reception hall with chandeliers, columns and dressed banquet tables', description: 'Soft florals. Natural textures. A little magic.', palette: ['#d6c7b3', '#f0e7db', '#7a8069'], pins: ['Candlelit tables', 'Garden-inspired florals', 'Natural linen textures'] },
+  { id: 'christmas', name: 'A golden Christmas', category: 'Christmas', image: '/event-manager-images/christmas.jpg', alt: 'Christmas dinner table with gold velvet chairs, tall black candles, reindeer figures and warm fairy lights', description: 'Evergreen details and the warmth of gathering.', palette: ['#5e644c', '#c6a977', '#f5efe5'], pins: ['Evergreen arrangements', 'Warm candlelight', 'Gold details'] },
+  { id: 'birthday', name: 'A reason to celebrate', category: 'Birthday', image: '/event-manager-images/birthday.jpg', alt: 'Overhead view of a birthday table with party hats, polka-dot plates, a sprinkle cake and confetti', description: 'Playful moments, made personal.', palette: ['#c99d87', '#efe0ce', '#998c99'], pins: ['Celebration backdrop', 'Personalized details', 'A welcoming entrance'] },
+  { id: 'newyear', name: 'After the last midnight', category: 'New Year', image: '/event-manager-images/newyear.jpg', alt: 'Champagne bottle uncorking beside a bright golden sparkler against a dark background', description: 'Statement lights. Unforgettable beginnings.', palette: ['#353a34', '#b99b68', '#e9decb'], pins: ['Statement lighting', 'Midnight celebration', 'Reflective accents'] },
+  { id: 'corporate', name: 'Beautifully on brand', category: 'Corporate', image: '/event-manager-images/corporate.jpg', alt: 'Speaker on a lit stage addressing a full audience beneath a timber-beamed ceiling', description: 'Considered spaces for meaningful connections.', palette: ['#857467', '#d6c6af', '#454c43'], pins: ['Brand inspiration', 'Stage backdrop', 'Guest experience'] },
 ] as const;
+export interface CatalogAsset {
+  id: string;
+  name: string;
+  category: string;
+  image: string;
+  alt: string;
+  stock: number;
+  unit: string;
+  cutout?: boolean;
+  description?: string;
+  height?: number;
+  width?: number;
+  weight?: number;
+  material?: string;
+  color?: string;
+  primaryVendorId?: string;
+  thumbnailFraming?: { zoom: number; offsetX: number; offsetY: number };
+}
 // Transparent product cutouts (EVTAST-0001…0023) with recorded sample stock.
-export const cutouts: { id: string; name: string; category: string; image: string; alt: string; stock: number; unit: string; cutout?: boolean }[] = [
+export const cutouts: CatalogAsset[] = [
   { id: 'evtast-0001', name: 'Pink rose bouquet', category: 'Florals', stock: 40, unit: 'pieces', image: '/event-manager-images/cutouts/evtast-0001.webp', cutout: true, alt: 'Pink rose bouquet cutout' },
   { id: 'evtast-0002', name: 'Pale blue floral stem', category: 'Florals', stock: 40, unit: 'pieces', image: '/event-manager-images/cutouts/evtast-0002.webp', cutout: true, alt: 'Pale blue floral stem cutout' },
   { id: 'evtast-0003', name: 'Pink pom-pom flower spray', category: 'Florals', stock: 40, unit: 'pieces', image: '/event-manager-images/cutouts/evtast-0003.webp', cutout: true, alt: 'Pink pom-pom flower spray cutout' },
@@ -43,8 +63,121 @@ export const cutouts: { id: string; name: string; category: string; image: strin
 // Shared catalog for the Asset Library and the mood board Library panel.
 export const catalog = cutouts;
 export const assets = catalog;
+
+const SEED_CUTOUT_COUNT = cutouts.length;
+const SEED_ASSET_IDS = new Set(cutouts.map((item) => item.id));
+const catalogListeners = new Set<() => void>();
+
+export function onCatalogSync(listener: () => void): () => void {
+  catalogListeners.add(listener);
+  return () => {
+    catalogListeners.delete(listener);
+  };
+}
+
+function framingEqual(
+  a?: { zoom: number; offsetX: number; offsetY: number },
+  b?: { zoom: number; offsetX: number; offsetY: number },
+): boolean {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  return a.zoom === b.zoom && a.offsetX === b.offsetX && a.offsetY === b.offsetY;
+}
+
+function catalogAssetsEqual(a: CatalogAsset, b: CatalogAsset): boolean {
+  return (
+    a.id === b.id &&
+    a.name === b.name &&
+    a.category === b.category &&
+    a.stock === b.stock &&
+    a.unit === b.unit &&
+    a.image === b.image &&
+    a.cutout === b.cutout &&
+    a.description === b.description &&
+    a.height === b.height &&
+    a.width === b.width &&
+    a.weight === b.weight &&
+    a.material === b.material &&
+    a.color === b.color &&
+    a.primaryVendorId === b.primaryVendorId &&
+    framingEqual(a.thumbnailFraming, b.thumbnailFraming)
+  );
+}
+
+export function syncCatalogAssetsFromInventory(
+  inventory: {
+    assetId: string;
+    name: string;
+    category: string;
+    unit: string;
+    image: string;
+    thumbnailFraming?: { zoom: number; offsetX: number; offsetY: number };
+    totalStock: number;
+    description?: string;
+    height?: number;
+    width?: number;
+    weight?: number;
+    material?: string;
+    color?: string;
+    primaryVendorId?: string;
+  }[],
+): void {
+  if (!Array.isArray(inventory)) return;
+  const customAssets: CatalogAsset[] = inventory
+    .filter((item) => item && typeof item.assetId === 'string' && !SEED_ASSET_IDS.has(item.assetId))
+    .map((item) => ({
+      id: item.assetId,
+      name: item.name,
+      category: item.category,
+      stock: Math.max(0, Number(item.totalStock) || 0),
+      unit: item.unit || 'pieces',
+      image: item.image || '/event-manager-images/planning.jpg',
+      alt: item.name,
+      ...(item.image?.includes('/cutouts/') ||
+        item.image?.startsWith('data:image/png;base64,') ||
+        item.image?.startsWith('data:image/webp;base64,')
+        ? { cutout: true }
+        : {}),
+      ...(item.description !== undefined ? { description: item.description } : {}),
+      ...(item.height !== undefined ? { height: item.height } : {}),
+      ...(item.width !== undefined ? { width: item.width } : {}),
+      ...(item.weight !== undefined ? { weight: item.weight } : {}),
+      ...(item.material !== undefined ? { material: item.material } : {}),
+      ...(item.color !== undefined ? { color: item.color } : {}),
+      ...(item.primaryVendorId !== undefined ? { primaryVendorId: item.primaryVendorId } : {}),
+      ...(item.thumbnailFraming !== undefined ? { thumbnailFraming: item.thumbnailFraming } : {}),
+    }));
+  const existingCount = cutouts.length - SEED_CUTOUT_COUNT;
+  if (
+    existingCount === customAssets.length &&
+    customAssets.every((asset, index) =>
+      catalogAssetsEqual(cutouts[SEED_CUTOUT_COUNT + index], asset),
+    )
+  ) {
+    return;
+  }
+  cutouts.splice(SEED_CUTOUT_COUNT, existingCount, ...customAssets);
+  for (const listener of catalogListeners) {
+    listener();
+  }
+}
+
+try {
+  if (typeof localStorage !== 'undefined') {
+    const rawOps = localStorage.getItem('lumiere.operations.store.v51');
+    if (rawOps) {
+      const parsedOps = JSON.parse(rawOps);
+      if (parsedOps && Array.isArray(parsedOps.inventory)) {
+        syncCatalogAssetsFromInventory(parsedOps.inventory);
+      }
+    }
+  }
+} catch {
+  /* ignore storage read errors during initialization */
+}
+
 export function newBrief(theme = ''): Brief { return { title: '', client: '', clientEmail: '', start: '', end: '', pax: 100, venue: '', theme, notes: '', pins: [], requirements: [], customItems: [], rentals: [] }; }
 export function themePins(theme: typeof themes[number]): Pin[] { return [{ id: crypto.randomUUID(), title: theme.name, image: theme.image, x: 5, y: 5, width: 300, rotation: -2 }, ...theme.pins.map((text, i) => ({ id: crypto.randomUUID(), title: text, text, x: 45 + (i % 2) * 26, y: 7 + i * 25, width: 190, rotation: i % 2 ? 2 : -1 }))]; }
 export function safeImage(url: string) { return /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(url) || /^\/event-manager-images\/([a-z-]+\.jpg|cutouts\/evtast-\d{4}\.webp|samples\/[a-z]+-\d\.webp)$/.test(url) || (() => { try { return new URL(url).protocol === 'https:' } catch { return false } })(); }
 export function displayDate(value: string) { return value ? new Date(value).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Date to be decided'; }
-export function dateInput(value: string) { if (!value) return ''; const date = new Date(value); return new Date(date.getTime() - date.getTimezoneOffset()*60000).toISOString().slice(0,16); }
+export function dateInput(value: string) { if (!value) return ''; const date = new Date(value); return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }

@@ -81,6 +81,23 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+html,
+body {
+  background-color: var(--bg);
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.min-h-viewport {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.shell-content-height {
+  min-height: calc(100vh - 100px);
+  min-height: calc(100dvh - 100px);
+}
+
 :root {
   --bg: #f9fafb;
   --panel: #ffffff;
@@ -247,6 +264,32 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+@layer base {
+  input::placeholder,
+  textarea::placeholder {
+    color: color-mix(in oklab, var(--muted-foreground) 70%, transparent);
+    opacity: 1;
+  }
+  .maplibregl-popup-content {
+    @apply bg-transparent! shadow-none! p-0! rounded-none!;
+  }
+  .maplibregl-popup-tip {
+    @apply hidden!;
+  }
+  .maplibregl-ctrl-attrib {
+    @apply bg-background! text-muted-foreground! border-border! rounded-md! border! shadow-sm!;
+  }
+  .maplibregl-ctrl-attrib a {
+    @apply text-muted-foreground!;
+  }
+  .maplibregl-ctrl-attrib a:hover {
+    @apply text-foreground!;
+  }
+  .maplibregl-ctrl-attrib-button {
+    @apply bg-transparent! dark:invert;
+  }
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
@@ -313,7 +356,7 @@ body {
 .dark .search-control::placeholder,
 .dark .search-control input::placeholder,
 .dark .filter-toolbar input::placeholder {
-  color: #b3b3b3;
+  color: color-mix(in oklab, var(--muted-foreground) 70%, transparent);
   opacity: 1;
 }
 
@@ -359,7 +402,7 @@ body {
 }
 
 .dark .auth-card input::placeholder {
-  color: #b3b3b3;
+  color: color-mix(in oklab, var(--muted-foreground) 70%, transparent);
   opacity: 1;
 }
 
@@ -368,7 +411,7 @@ body {
   color: #b8b8b8;
 }
 
-.dark .auth-card .auth-submit {
+.dark .auth-card .auth-submit:disabled {
   background: #858585;
   color: #111111;
 }
@@ -385,6 +428,20 @@ body {
 
 .dark .auth-card .auth-divider-label {
   background: #1c1c1c;
+}
+
+.auth-header-bar {
+  padding-top: calc(0.5rem + env(safe-area-inset-top));
+  padding-bottom: 0.5rem;
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+@media (min-width: 640px) {
+  .auth-header-bar {
+    padding-left: max(2rem, env(safe-area-inset-left));
+    padding-right: max(2rem, env(safe-area-inset-right));
+  }
 }
 
 .dark .auth-topbar,
@@ -473,6 +530,7 @@ body {
    html.em-theme only maps the module vocabulary onto the admin tokens,
    so palette, typography and dark/light behaviour follow the admin app.
 ------------------------------------------------------------------- */
+:root,
 html.em-theme {
   --em-canvas: var(--bg);
   --em-panel: var(--panel);
@@ -488,6 +546,7 @@ html.em-theme {
   --em-serif: var(--font-sans);
   --em-sans: var(--font-sans);
 }
+.dark,
 html.em-theme.dark {
   --em-warm: #facc15;
 }
@@ -778,7 +837,7 @@ html.em-theme.dark {
 .em-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
-  min-height: 460px;
+  min-height: 552px;
   overflow: hidden;
   border-radius: 18px;
   background: var(--em-panel);
@@ -828,26 +887,44 @@ html.em-theme.dark {
 .em-hero-media {
   position: relative;
   margin: 0;
-  min-height: 320px;
+  min-height: 384px;
   background: #3c4a40;
 }
 .em-hero-media img {
   position: absolute;
   inset: 0;
+  z-index: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center 40%;
 }
+.em-hero-img--prev {
+  opacity: 1;
+}
+.em-hero-img--enter {
+  animation: em-hero-fade-in 900ms ease forwards;
+}
+@keyframes em-hero-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .em-hero-img--enter {
+    animation: none;
+    opacity: 1;
+  }
+}
 .em-hero-media::after {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: 1;
   background: linear-gradient(180deg, rgb(25 33 27 / 0.08) 30%, rgb(25 33 27 / 0.72) 100%);
 }
 .em-hero-index {
   position: absolute;
-  z-index: 1;
+  z-index: 2;
   top: 22px;
   right: 24px;
   font-size: 11px;
@@ -858,7 +935,7 @@ html.em-theme.dark {
 }
 .em-hero-media figcaption {
   position: absolute;
-  z-index: 1;
+  z-index: 2;
   left: 32px;
   right: 32px;
   bottom: 30px;
@@ -882,7 +959,7 @@ html.em-theme.dark {
   }
   .em-hero-media {
     order: -1;
-    min-height: 300px;
+    min-height: 360px;
   }
 }
 @media (max-width: 759.98px) {
@@ -890,7 +967,7 @@ html.em-theme.dark {
     padding: 32px 22px 34px;
   }
   .em-hero-media {
-    min-height: 240px;
+    min-height: 288px;
   }
   .em-hero-media figcaption {
     left: 22px;
@@ -1304,16 +1381,16 @@ html.em-theme.dark {
   gap: 10px;
   width: 280px;
   max-width: 100%;
-  height: 44px;
-  padding: 0 16px;
-  border-radius: 999px;
-  border: 1px solid var(--em-line);
-  background: var(--em-panel);
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--fg) 6%, transparent);
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
   color: var(--em-soft);
 }
 .em-search:focus-within {
-  border-color: var(--em-sage);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--em-sage) 18%, transparent);
+  border-color: color-mix(in srgb, var(--fg) 25%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--fg) 10%, transparent);
 }
 .em-search input {
   flex: 1;
@@ -1325,7 +1402,7 @@ html.em-theme.dark {
   outline: none !important;
 }
 .em-search input::placeholder {
-  color: var(--em-soft);
+  color: color-mix(in oklab, var(--muted-foreground) 70%, transparent);
 }
 @media (max-width: 759.98px) {
   .em-search {
@@ -2690,15 +2767,28 @@ html.em-theme .em-section-head {
 }
 
 /* Cards */
+.em-asset-card,
 html.em-theme :is(.em-panel, .em-hero, .em-theme-card, .em-asset-card, .em-state, .em-skeleton-card, .em-aside-card, .em-feeling) {
   border-radius: 14px;
   border-color: var(--edge);
   box-shadow: none;
 }
+.dark .em-asset-card,
 html.em-theme.dark :is(.em-panel, .em-hero, .em-theme-card, .em-asset-card, .em-state, .em-skeleton-card, .em-aside-card, .em-feeling, .em-pitch-card, .em-agenda-card, .em-summary, .em-notice) {
   background-color: #0e0e0e;
   background-image: radial-gradient(ellipse 340px 240px at 0% 0%, #202020 0%, #191919 30%, #121212 65%, #0e0e0e 100%);
   border-color: #1b1b1b;
+}
+.em-asset-card .em-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+}
+.em-asset-card .em-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0;
 }
 html.em-theme :is(.em-theme-card, .em-pitch-card):hover {
   box-shadow: none;

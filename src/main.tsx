@@ -1,8 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
-import { NotificationProvider } from './components/Notifications'
-import SignInBanner from './components/SignInBanner'
+import { NotificationProvider } from './components/ui/Notifications'
+import SignInBanner from './components/layout/SignInBanner'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

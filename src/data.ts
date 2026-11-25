@@ -1,13 +1,6 @@
-export type ProjectStatus = 'Ready' | 'In Progress' | 'Blocked'
-export interface Project {
-  id: number
-  name: string
-  description: string
-  status: ProjectStatus
-  environment: 'Production' | 'Development' | 'Staging'
-  updated: string
-  version: string
-}
+import type { Project, ProjectStatus } from './types/project'
+
+export type { Project, ProjectStatus }
 
 export const projects: Project[] = [
   { id: 1, name: 'E-Commerce Platform', description: 'Complete online store with payment integration and inventory sync', status: 'Ready', environment: 'Production', updated: '10/19/2026', version: 'v3.2.1' },

@@ -126,7 +126,7 @@ Direct `@theme inline` constants:
 | `violet` | `#8b5cf6` |
 | `pink` | `#ec4899` |
 
-`Badge` in `components/ui.tsx` uses its own exact recipes:
+`Badge` in `components/ui/ui.tsx` uses its own exact recipes:
 
 | Tone | Background | Text | Border/ring |
 | --- | --- | --- | --- |
@@ -317,7 +317,7 @@ Security outer 12px and tabs 8px, rail items 10px, dashboard Calendar days 3px.
 
 ### 4.2 Shell geometry
 
-Source: `components/Shell.tsx`.
+Source: `components/layout/Shell.tsx`.
 
 - Top wrapper sticky at top 0, z40, 15px horizontal padding, 10px top padding.
   Actual header is 64px high, radius 14px, border 1px. Left brand/menu group
@@ -450,7 +450,7 @@ Actual props and examples are in the component reference.
 
 ### Security compact tab contract
 
-Source: `index.css` and `pages/Security.tsx`.
+Source: `index.css` and `pages/admin/Security.tsx`.
 
 - `.security-tabs`: flex, align center, gap2, fit-content/max100%, h44,
   padding4, mb16, border radius12, overflow-x auto.

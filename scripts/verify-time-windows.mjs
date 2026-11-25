@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { registerHooks } from 'node:module'
 registerHooks({ resolve(specifier, context, next) { try { return next(specifier, context) } catch (error) { if (specifier.startsWith('.') && !specifier.endsWith('.ts')) return next(`${specifier}.ts`, context); throw error } } })
-const { rollingSignInBuckets, signInSeries, countRecentFailedSignIns, isWithinFailedSignInWindow } = await import('../src/auth/dashboardMetrics.ts')
+const { rollingSignInBuckets, signInSeries, countRecentFailedSignIns, isWithinFailedSignInWindow } = await import('../src/dashboard/dashboardMetrics.ts')
 const { dayStart, dayEnd, fmtFull } = await import('../src/auth/manilaTime.ts')
 const { filterAuditEvents, emptyAuditFilters } = await import('../src/auth/auditFilters.ts')
 for (const zone of ['UTC', 'America/Los_Angeles', 'Asia/Tokyo']) {

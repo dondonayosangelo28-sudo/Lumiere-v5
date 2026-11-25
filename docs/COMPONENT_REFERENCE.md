@@ -9,7 +9,7 @@ means the component's declared React HTML attribute type, not an assurance that
 every attribute is forwarded to every internal element. Do not import private
 helpers by inventing exports.
 
-## 1. Core primitives — `src/components/ui.tsx`
+## 1. Core primitives — `src/components/ui/ui.tsx`
 
 All listed exports are **named**, not default.
 
@@ -68,13 +68,13 @@ import { Card, PageHeader, Button, Field, Input, Badge } from '../components/ui'
 This is a composition example, not a new route or feature. Use the actual
 current page as the template and don't add layout padding to the shell globally.
 
-## 2. Admin helpers — `src/components/AdminKit.tsx`
+## 2. Admin helpers — `src/components/admin/AdminKit.tsx`
 
 All exports below are named.
 
 | Export | Properties / signature | Details |
 | --- | --- | --- |
-| `fieldCls` | string constant | 40px admin input recipe, fg5% fill, invalid border; Accounts currently has a private duplicate |
+| `fieldCls` | string constant | 40px admin input recipe, fg5% fill, invalid border; shared across admin views including Accounts |
 | `ghostBtn` | string constant | 32px pill text-action recipe including explicit focus states |
 | `SearchField` | `label`, `value`, `onChange:(v:string)=>void`, `placeholder` | Search input with icon and search-control hook; not debounced internally |
 | `SelectField` | `label`, `value`, `onChange:(v:string)=>void`, `children` | Wraps Dropdown and adds visible chevron; label is accessible label, not visible field heading |
@@ -118,7 +118,7 @@ the relevant page's column semantics and density rather than inventing imports.
 
 ## 3. Selects, menus and date controls
 
-### `Dropdown` — `src/components/Dropdown.tsx` (default)
+### `Dropdown` — `src/components/ui/Dropdown.tsx` (default)
 
 Declared props: `SelectHTMLAttributes<HTMLSelectElement>`, including
 `children`, `value`, `defaultValue`, `onChange`, `className`, `disabled`,
@@ -149,7 +149,7 @@ DatePicker; do not duplicate their recipes unnecessarily.
 </SelectField>
 ```
 
-### `RowMenu` — `src/components/RowMenu.tsx` (default)
+### `RowMenu` — `src/components/ui/RowMenu.tsx` (default)
 
 Props:
 
@@ -173,7 +173,7 @@ Props:
   and scrollable; shared dropdown styles.
 - Danger affects enabled menu item color only; confirmation is caller's job.
 
-### `DatePicker` — `src/components/DatePicker.tsx` (default)
+### `DatePicker` — `src/components/ui/DatePicker.tsx` (default)
 
 Props: `AriaAttributes & {value:string; onChange:(value:string)=>void;
 min?:string; max?:string; disabled?:boolean; id?:string; name?:string;
@@ -184,13 +184,13 @@ provided. Labelled popup, native button trigger, Base UI Popover,42-day grid.
 Keyboard support and bounds are detailed in the design reference.
 ClassName modifies trigger, not popup.
 
-Helper module `src/components/calendarDates.ts` exports `dateKey`, `parseDate`,
+Helper module `src/components/ui/calendarDates.ts` exports `dateKey`, `parseDate`,
 `calendarDays`, `allowedDate`, `shiftMonth`. Uses noon for local-date parsing
 and42-day Sunday-first grid; month shifting clamps day to valid month length.
 
 ## 4. Modal infrastructure
 
-### `OverlayLayer` — `src/components/OverlayLayer.tsx` (default)
+### `OverlayLayer` — `src/components/overlay/OverlayLayer.tsx` (default)
 
 Props: `children`, `panelRef: RefObject<HTMLElement | null>`,
 `onClose:()=>void`, `className?`.
@@ -207,7 +207,7 @@ Props: `children`, `panelRef: RefObject<HTMLElement | null>`,
 
 Prefer the styled wrappers below for ordinary UI.
 
-### `Modal` — `src/components/Modal.tsx` (default)
+### `Modal` — `src/components/overlay/Modal.tsx` (default)
 
 Props: `open:boolean`, `onClose:()=>void`, `title:string`, `children`,
 `lowered?:boolean=false`, `compact?:boolean=false`.
@@ -219,7 +219,7 @@ Props: `open:boolean`, `onClose:()=>void`, `title:string`, `children`,
 - No footer prop: compose action row inside children. No generic className prop.
 - If busy operations must not close, guard `onClose` in caller.
 
-### `Drawer` — `src/components/Drawer.tsx` (default)
+### `Drawer` — `src/components/overlay/Drawer.tsx` (default)
 
 Props: `open:boolean`, `onClose:()=>void`, `title:string`, `subtitle?:string`,
 `children`, `footer?:ReactNode`, `compact?:boolean=false`.
@@ -239,7 +239,7 @@ Props: `open:boolean`, `onClose:()=>void`, `title:string`, `subtitle?:string`,
 </Drawer>
 ```
 
-### `ConfirmAction` — `src/components/AccountConfirm.tsx` (default)
+### `ConfirmAction` — `src/components/admin/AccountConfirm.tsx` (default)
 
 Named `ConfirmKey = 'deactivate' | 'reactivate' | 'reset' | 'unlock' |
 'delete' | 'restore'`.
@@ -253,7 +253,7 @@ while busy and changes confirmation copy by action. Used in Accounts and
 Security; keyed by action/account so local state resets between actions.
 Use Modal directly for a different domain rather than passing arbitrary keys.
 
-## 5. Authentication primitives — `src/components/AuthShell.tsx`
+## 5. Authentication primitives — `src/components/auth/AuthShell.tsx`
 
 `AuthShell` default export; remaining entries are named.
 
@@ -276,7 +276,7 @@ OTP visual-slot input is **private** to ForgotPassword, not a reusable export.
 
 ## 6. Shell, navigation and notifications
 
-### `Shell` — `src/components/Shell.tsx` (default)
+### `Shell` — `src/components/layout/Shell.tsx` (default)
 
 Props: `account:Account`, `route:Route`, `go:(r:Route)=>void`, `dark:boolean`,
 `setDark:(v:boolean)=>void`, `onLogout:()=>void`, `children`.
@@ -287,9 +287,9 @@ main and footer. Don't build a second shell around a page rendered inside it.
 
 Named exports:
 
-- `Route`: overview, accounts, accounts-deleted, projects, projects-deleted,
-  settings-profile, settings-security, settings-app, security, audit-logs,
-  notifications, and template literal ``module-${string}``.
+- `Route`: re-exported from `src/navigation.ts`; overview, accounts, accounts-deleted,
+  projects, projects-deleted, settings-profile, settings-security, settings-app,
+  security, audit-logs, notifications, and template literal ``module-${string}``.
 - `Logo()`: existing image wordmark.
 - `initials(name:string)`: first letters of up to two words, uppercase;
   fallback `?`.
@@ -298,17 +298,19 @@ Named exports:
 
 Related:
 
-- `src/components/NavigationContext.ts`: named `NavigationContext` with
+- `src/navigation.ts`: neutral navigation module defining type `Route`, URL hash invitation parser `readInviteToken`, and routing hook `useAppNavigation`.
+- `src/theme.ts`: theme hook `useTheme` managing light/dark mode and syncing the document element class.
+- `src/components/layout/NavigationContext.ts`: named `NavigationContext` with
   `{route,go}|null`, and `breadcrumbRoutes`. The breadcrumb label mapping is
   not a permission definition.
-- `src/components/adminNavigation.ts`: type `AdminNavigation`, union of
+- `src/components/admin/adminNavigation.ts`: type `AdminNavigation`, union of
   accounts with role/status intent, security with activity/locked/sessions
   tab and optional failedLast24h, or audit-logs.
 - `src/auth/roleConfig.ts`: `RoleModule`, `roleModules`, `adminModules`,
   `notificationsModule`, `isAdminRoute`, `canAccess`, `moduleForRoute`.
   Always use these actual role strings/lists for new authorized navigation.
 
-### `CommandPalette` — `src/components/CommandPalette.tsx` (default)
+### `CommandPalette` — `src/components/layout/CommandPalette.tsx` (default)
 
 Props: `role:Role`, `open:boolean`, `onClose:()=>void`, `go:(r:Route)=>void`.
 Searches page/module labels and descriptions, filters destinations with
@@ -316,23 +318,62 @@ canAccess, supports arrows/Enter/Escape, resets query on open.
 Uses OverlayLayer; opening shortcut lives in private TopBar, not this component.
 Contains hardcoded dark item/footer colors even under light mode.
 
-### `SignInBanner` — `src/components/SignInBanner.tsx` (default)
+### `SignInBanner` — `src/components/layout/SignInBanner.tsx` (default)
 
 No props. Mounted alongside App by main.tsx. Listens for `app:signed-in`;
 named `showSignInBanner()` dispatches that event.
 Named `SIGN_IN_BANNER_DURATION = 4000`. Timer-driven dismissal independent of
 progress animation, plus close button.
 
-### `PrototypeTools` — `src/components/PrototypeTools.tsx` (default)
+### `PrototypeTools` — `src/components/prototype/PrototypeTools.tsx` (default)
 
 Props: `openInvitation:(token:string)=>void`, `openRecovery:()=>void`,
 `onReset:()=>void`.
 Development reviewer panel for invitations/recovery/mock failures/demo reset.
-Its source comment describes App lazy-loading it only in development; App-level
-loading wasn't independently visible in this audit. Do not expose it as a new
-production workflow or copy sensitive demo values into general UI.
+Imports `demoAccounts` and `prototypeAuth` from `src/auth/prototypeAuth.ts`, guarded
+behind `import.meta.env.DEV`.
+App lazy-loads it only in development. Do not expose it as a new production workflow
+or copy sensitive demo values into general UI.
 
-## 7. Reorderable summaries — `src/components/StatCards/`
+### Auth and domain boundaries
+
+- `src/types/project.ts`: Neutral domain types `Project` and `ProjectStatus` extracted from `src/data.ts` fixtures.
+- `src/data.ts`: Fixtures (`projects`, `deletedProjects`, `roles`, `initialTasks`) with re-exported `Project` and `ProjectStatus` domain types.
+- `src/auth/mockTransport.ts`: Latency simulation and one-shot network failure injector (`respond<T>`).
+- `src/auth/accountAdminOperations.ts`: Admin account operations (`createUser`, `resendInvitation`, `updateAccount`, `deactivateAccount`, `deleteAccount`, `restoreAccount`, `reactivateAccount`, `unlockAccount`, `endSession`, `initiatePasswordReset`) and role constraints (`requireAdmin`, `deactivationBlock`, `ACCOUNT_ADMIN_ROLE`, `ASSIGNABLE_ROLES`).
+- `src/auth/passwordRecoveryOperations.ts`: Self-service password/recovery operations (`changePassword`, `validateInvitation`, `completeInvitation`, `requestPasswordReset`, `verifyResetOtp`, `resendResetOtp`, `resetPassword`, `updateOwnProfile`).
+- `src/auth/prototypeAuth.ts`: Development-only prototype utilities and demo accounts (`demoAccounts`, `prototypeAuth`).
+- `src/auth/mockAuthService.ts`: Unified service entry point composing `accountAdminOperations` and `passwordRecoveryOperations` into `authService`, with backward-compatible re-exports.
+
+### Event Manager MoodBoardCanvas decomposition
+
+- `src/features/event-manager/mood-board/MoodBoardCanvas.tsx`: Master Canva-style interactive mood board editor coordinator. Owns viewport zoom, pan gestures, pin selection, drag-and-drop ingestion, undo/redo history stack, and PNG canvas export. Re-exports `ShelfItem` type.
+- `src/features/event-manager/mood-board/canvas-constants.ts`: Starter template layouts (`TEMPLATES`), standard typography font families (`FONTS`), canvas background colors (`LEGACY_PAPER`, `NEW_PAPER`), drawing pen palette (`PEN_COLORS`), coordinate clamping utilities (`clamp`), and tab descriptor definitions (`tabs`).
+- `src/features/event-manager/mood-board/CanvasContextToolbar.tsx`: Top floating contextual selection bar. Renders typography controls (family, size, alignment, bold/italic, color, line height, letter spacing), shape attributes (fill, stroke, corner radius), sticky note colors, opacity slider, layer reordering buttons, and page background selector.
+- `src/features/event-manager/mood-board/CanvasSidebarPanels.tsx`: Dedicated sidebar tab panels implementing 8 creative workflows:
+  - `library`: Filterable asset catalogue and reference shelf items.
+  - `templates`: Editorial hero, grid, quote, and theme page starters.
+  - `elements`: Basic geometric shapes, lines, frames, and dividers.
+  - `text`: Headings, body copy, and sticky notes.
+  - `inspiration`: Color palette generators and web visual search.
+  - `uploads`: File upload handling, dropzone, and image previews.
+  - `draw`: Freehand pen drawing tool with color swatches.
+  - `layers`: Z-index stacking list, visibility toggling, and locking.
+- `src/features/event-manager/mood-board/CanvasPageFilmstrip.tsx`: Multi-page thumbnail filmstrip navigation, page duplication, blank page insertion, and full grid overview mode.
+
+### Operations Store architecture (`src/operations/`)
+
+- `src/operations/store.ts`: Public facade re-exporting all store functions, types, and hooks for seamless backwards compatibility.
+- `src/operations/store-core.ts`: Core store persistence (`OPERATIONS_STORAGE_KEY`), change events (`OPERATIONS_EVENT`), atomic state mutation wrapper (`mutateOperationsStore`), active ground crew directory query (`getAvailableGroundCrewAccounts`), and authoritative manifest calculation (`getEventManifestLines`).
+- `src/operations/store-fulfillment.ts`: Pitch approval handoff to Warehouse (`publishApprovedEventToWarehouse`), idempotent re-approval resolution, stock line reservation (`allocateStockForOrderLine`), and full event stock allocation (`allocateAllStockForEvent`).
+- `src/operations/store-acquisitions.ts`: Supplier acquisition orders (`createAcquisitionOrder`) from deficit shortages or general inventory replenishment, and warehouse stock intake ledger (`receiveAcquisitionOrder`).
+- `src/operations/store-fabrication.ts`: Custom fabrication jobs (`createCustomFabricationJob`, initializing in status `"In Production"`), ground crew after-shift photo submissions (`submitAfterShiftWorkPhoto`), and warehouse inspection sign-off (`verifyCustomFabricationJob`, transitioning to `"Ready to Load"`).
+- `src/operations/store-deployment.ts`: Personnel scheduling (`assignCrewMemberToEvent`), Team Lead designation with full audit history (`designateEventTeamLead`), and task execution status and blocker management (`updateCrewTaskExecutionStatus`).
+- `src/operations/store-rentals.ts`: Rental booking documentation (`saveRentalELetterAndBookingRef`), supplier acceptance confirmation (`recordRentalSupplierAcceptance`), venue delivery verification (`recordDirectVenueRentalReceipt`), return handback (`recordDirectVenueRentalReturn`), and discrepancy resolution (`resolveRentalDiscrepancy`).
+- `src/operations/store-dispatch.ts`: Physical loading verification (`updateManifestLoadedQuantity`), dispatch shortfall blocking (`submitFinalLoadingChecklist`, enforcing D03 zero-shortfall constraint), and vehicle departure confirmation (`confirmOutboundDeparture`).
+- `src/operations/store-returns.ts`: Field incident logging (`submitFieldIncidentReport`), returned inventory audit (`updateManifestReturnedQuantity`), final return checklist sign-off (`submitFinalReturnChecklist`), incident resolution (`resolveFieldIncidentReport`), and event accountability closeout (`closeWarehouseEventAccountability`, enforcing D05 prerequisites).
+
+## 7. Reorderable summaries — `src/components/dashboard/StatCards/`
 
 ### `StatCards` — `index.tsx` (default)
 
@@ -374,28 +415,58 @@ File paths are relative to `src/`.
 
 | File/export | Props / role | Reuse convention |
 | --- | --- | --- |
-| `pages/Overview.tsx` default `Overview` | `onOpen:(nav:AdminNavigation)=>void` | Admin dashboard composition; callback forwarded into summaries, whose current renderer doesn't invoke it |
+| `pages/dashboard/Overview.tsx` default `Overview` | `onOpen:(nav:AdminNavigation)=>void` | Admin dashboard composition; callback forwarded into summaries, whose current renderer doesn't invoke it |
 | `Overview.tsx` named `Hero` | `name?:string='Demo'` | Shared welcome/weather/clock card; Executive passes firstName; weather illustrative |
-| `pages/AdminDashboardCards.tsx` named `AdminSummaryCards` | `onOpen:(nav:AdminNavigation)=>void` | Live demo counts, sample/history trends and seeds; not a generic data-free card |
+| `pages/dashboard/AdminDashboardCards.tsx` named `AdminSummaryCards` | `onOpen:(nav:AdminNavigation)=>void` | Live demo counts, sample/history trends and seeds; not a generic data-free card |
 | Same file `SignInActivity`, `AuditActivity`, `UsersByRole` | no props | Subscribe to shared browser store, SVG charts/ranges/coverage; don't duplicate selector logic |
-| `pages/OverviewExtras.tsx` named `DateRangePicker` | no props | Overview-specific local selection,718px popup; not generic shared DatePicker |
+| `pages/dashboard/OverviewExtras.tsx` named `DateRangePicker` | no props | Overview-specific local selection,718px popup; not generic shared DatePicker |
 | Same file `ExportMenu` | `variant?:'outline'|'ghost'='outline'`, `csv?:()=>string` | CSV supplied → CSV/PNG menu; otherwise direct PNG of dashboard-image-export |
 | Same file `RecentProjects` | `account:Account` + `RecentProjectsData` | Event Manager permission check, four-per-page latest projects, export and project dialogs |
 | Same file type `RecentProjectsData` | `all:Project[]`, `setAll`, `setTrash` React Dispatch/SetStateAction lists | Shared project state boundary |
-| `pages/Accounts.tsx` default `AccountsPage` | `actor:Account`, `onHome`; optional `openAccountId:number|null`, `onOpened`, `deleted=false`, `initialRole=''`, `initialStatus=''` | Account management entry; modal read-only details, create/edit drawers, shared confirmations |
+| `pages/admin/Accounts.tsx` default `AccountsPage` | `actor:Account`, `onHome`; optional `openAccountId:number|null`, `onOpened`, `deleted=false`, `initialRole=''`, `initialStatus=''` | Account management entry; modal read-only details, create/edit drawers, shared confirmations |
 | Same file named `DetailsDrawer` | `account:Account|null`, `editing:boolean`, `setEditing:(v:boolean)=>void`, `onClose`, `onSaved:(text:string)=>void` | **Read-only uses compact lowered Modal**; editing uses Drawer; Security imports it |
-| `pages/Security.tsx` default `SecurityPage` | `account`, `go`, `onLogout`; `initialTab?:'activity'|'locked'|'sessions'|'policy'`, `initialFailedLast24h?:boolean` | System Admin guard; compact semantic tabs and table panels |
-| `pages/AuditLogs.tsx` default `AuditLogsPage` | `account:Account`, `go` | System Admin guard; draft/applied read-only filters/detail drawer |
-| `pages/Projects.tsx` default `ProjectsPage` | `deleted?:boolean`, `onHome`, `all`, `setAll`, `trash`, `setTrash` | Projects/deleted lists and local forms; preserve different density/show-more behavior |
-| `pages/Settings.tsx` default `SettingsPage` | `account`, `tab:'settings-profile'|'settings-security'|'settings-app'`, `go`, `onHome` | Role-visible tabs, profile/password/local preference panels |
-| `pages/Login.tsx` default `Login` | `onLogin:(a:Account)=>void`, `onForgot`, `dark`, `setDark`, `notice?:string` | Public auth; synthetic service; loginSurfaces |
-| `pages/SetPassword.tsx` default `SetPassword` | `token:string|null`, `dark`, `setDark`, `onLogin:()=>void` | Invitation state machine |
-| `pages/ForgotPassword.tsx` default `ForgotPassword` | `dark`, `setDark`, `onLogin:()=>void` | Identify/verify/reset/done flow; private single-input OTP implementation |
-| `pages/RoleViews.tsx` named `RoleDashboard` | `account`, `go`, `projectData:RecentProjectsData` | Role module shortcut cards; Executive special hero/scope; Event Manager recent projects |
+| `pages/admin/Security.tsx` default `SecurityPage` | `account`, `go`, `onLogout`; `initialTab?:'activity'|'locked'|'sessions'|'policy'`, `initialFailedLast24h?:boolean` | System Admin guard; compact semantic tabs and table panels |
+| `pages/admin/AuditLogs.tsx` default `AuditLogsPage` | `account:Account`, `go` | System Admin guard; draft/applied read-only filters/detail drawer |
+| `pages/projects/Projects.tsx` default `ProjectsPage` | `deleted?:boolean`, `onHome`, `all`, `setAll`, `trash`, `setTrash` | Projects/deleted lists and local forms; preserve different density/show-more behavior |
+| `pages/settings/Settings.tsx` default `SettingsPage` | `account`, `tab:'settings-profile'|'settings-security'|'settings-app'`, `go`, `onHome` | Role-visible tabs, profile/password/local preference panels |
+| `pages/auth/Login.tsx` default `Login` | `onLogin:(a:Account)=>void`, `onForgot`, `dark`, `setDark`, `notice?:string` | Public auth; synthetic service; loginSurfaces |
+| `pages/auth/SetPassword.tsx` default `SetPassword` | `token:string|null`, `dark`, `setDark`, `onLogin:()=>void` | Invitation state machine |
+| `pages/auth/ForgotPassword.tsx` default `ForgotPassword` | `dark`, `setDark`, `onLogin:()=>void` | Identify/verify/reset/done flow; private single-input OTP implementation |
+| `pages/dashboard/RoleViews.tsx` named `RoleDashboard` | `account`, `go`, `projectData:RecentProjectsData` | Role module shortcut cards; Executive special hero/scope; Event Manager recent projects |
 | Same file `ModulePlaceholder` | `module:RoleModule`, `go`, `crumb?:string` | Existing Coming soon visual only |
 | Same file `RoleModulePage` | `account`, `route:string`, `go` | Resolves module for role, then placeholder or AccessDenied in restored version |
 | Same file `NotificationsPage` | `go` | Notifications placeholder |
 | Same file `AccessDenied` | `go` | Centered max-width card and Return to Dashboard |
+| `features/event-manager/EventManager.tsx` default `EventManager`, named `StudioDashboard` | `user:StudioUser`, `route?:EventManagerRoute` | Coordinator entry point for project loading, active drafts, navigation, save/approval callbacks, and editor lifecycle |
+| `features/event-manager/StudioDashboard.tsx` default `StudioDashboard` | `user:StudioUser`, `go:(r:Route)=>void` | Event Manager dashboard overview, theme inspiration, and drawing board |
+| `features/event-manager/PitchesView.tsx` default `PitchesView`, named `PitchCard` | `projects:Project[]`, `open:OpenPitch`, `duplicate`, `remove`, `startNew` | Pitch search, status tabs filtering, cards, and quick actions |
+| `features/event-manager/ConceptsView.tsx` default `ConceptsView`, named `ThemeCard`, `ThemeSwatches` | `projects:Project[]`, `themeBoards:ThemeBoard[]`, `startRegisteredTheme`, `editTheme`, `removeTheme`, `open`, `startNew` | Theme collection gallery and pitch mood boards |
+| `features/event-manager/AssetsView.tsx` default `AssetsView` | `projects:Project[]` | Asset catalog stock, category filtering, and reserved inventory meter |
+| `features/event-manager/PageHead.tsx` default `PageHead`, named `StateCard` | `eyebrow:string`, `title:string`, `copy:string`, `action?`, `subAction?`, `crumb?` | Breadcrumb navigation, view page header, and empty state cards |
+| `features/event-manager/calendar/CalendarView.tsx` default `CalendarView` | `projects`, `open`, `viewPitches`, `today`, `day`, `setDay`, `month`, `setMonth`, `activePopoverKey`, `setActivePopoverKey`, `selectedBlock`, `setSelectedBlock`, `activities`, `onCreateActivity`, `onUpdateActivity`, `onUpdateActivityNote`, `onDeleteActivity` | Creation view schedule, mini-month card, agenda, breakdown, and week/day time grid |
+| `features/event-manager/calendar/ActivityForm.tsx` named `ActivityForm`, `ActivityCreatePopover` | `initial`, `onSave`, `onCancel`, `onDelete?`; popover trigger and positioning props | Activity manual schedule forms and creation popover |
+| `features/event-manager/calendar/CalendarPreviews.tsx` named `EventPreviewTrigger`, `ActivityPreviewTrigger` | popover triggers, details, and action callbacks | Approved pitch preview and manual activity preview popovers |
+| `features/event-manager/pitch-editor/Editor.tsx` default `Editor`, named `Presentation`, `shelf` | `user`, `project`, `initialBrief`, `initialStep?`, `onSaved`, `onClose`, `onDirty`, `onWorking`, `restored?`, `backLabel?` | Wizard coordinator, master brief state, step navigation, dirty-state tracking, save and approval lifecycle |
+| `features/event-manager/pitch-editor/BriefStep.tsx` default `BriefStep` | `brief`, `update`, `errors`, `onEmailBlur?`, `budgetInput`, `onBudgetChange`, `onBudgetBlur`, `readOnly`, `saved`, `user` | Client brief form, date/time scheduling, guest counts, budget input, and notes |
+| `features/event-manager/pitch-editor/BoardStep.tsx` default `BoardStep`, named `shelf` | `brief`, `update`, `readOnly`, `onPresent`, `fullScreen`, `onExitFullScreen` | Mood board visual canvas step, asset shelf items, and presentation toggle |
+| `features/event-manager/pitch-editor/AssetStep.tsx` default `AssetStep` | `brief`, `update`, `avail`, `readOnly`, `user`, `savedId?`, `onRefresh` | Asset requirements table, availability verification, custom fabrication items, rentals, and personnel estimation |
+| `features/event-manager/pitch-editor/ApprovalStep.tsx` default `ApprovalStep` | `brief`, `saved`, `dirty`, `checks`, `goStep`, `busy`, `presentable`, `onReady`, `note`, `setNote`, `ack`, `setAck`, `onApprove`, `audit`, `user` | Pitch summary, readiness checklist, presentation readiness, client approval record, and audit history |
+| `features/event-manager/pitch-editor/Presentation.tsx` default `Presentation` | `brief:Brief` | Client-facing presentation view for theme, mood board, details, and palette |
+| `features/event-manager/pitch-editor/StepHead.tsx` default `StepHead` | `eyebrow`, `title`, `description`, `actions?` | Pitch editor step title header and actions container |
+| `features/warehouse/WarehouseModules.tsx` default `WarehouseModulePage`, named `WarehouseDashboardSummary` | `moduleKey`, `actor`, `onNavigate` | Warehouse module router and dashboard fulfillment summary |
+| `features/warehouse/modules/OrderRequestsModule.tsx` default `OrderRequestsModule` | `actor:OpsActor`, `onNavigate:(route:string)=>void` | Event fulfillment, stock allocation, outbound dispatch, and rental closeout |
+| `features/warehouse/modules/AssetInventoryModule.tsx` default `AssetInventoryModule` | `actor:OpsActor`, `onNavigate:(route:string)=>void` | Warehouse stock inventory, search/filter, and quick replenishment |
+| `features/warehouse/modules/DeficitQueueModule.tsx` default `DeficitQueueModule` | `actor:OpsActor`, `onNavigate:(route:string)=>void` | Event shortage queue and direct acquisition fulfillment |
+| `features/warehouse/modules/AssetAcquisitionModule.tsx` default `AssetAcquisitionModule` | `actor:OpsActor` | Purchase order placement and stock receipt ledger |
+| `features/warehouse/modules/CustomFabricationModule.tsx` default `CustomFabricationModule` | `actor:OpsActor` | Custom fabrication jobs, build instructions, and crew photo verification |
+| `features/warehouse/modules/PersonnelDeploymentModule.tsx` default `PersonnelDeploymentModule` | `actor:OpsActor` | Ground crew event assignment, team lead designation, and blocker tracking |
+| `features/warehouse/modules/DamageAssessmentModule.tsx` default `DamageAssessmentModule` | `actor:OpsActor` | Field damage/missing incident report resolution and sign-off |
+| `features/ground-crew/GroundCrewModules.tsx` default `GroundCrewModulePage`, named `GroundCrewDashboardSummary` | `moduleKey`, `actor`, `onNavigate` | Ground crew module router and assignment summary |
+| `features/ground-crew/AssignedWorkModule.tsx` default `AssignedWorkModule` | `actor:OpsActor`, `onNavigate:(route:string)=>void` | Event assignments, task checklists, and manifest review |
+| `features/ground-crew/DispatchLoadingChecksModule.tsx` default `DispatchLoadingChecksModule` | `actor:OpsActor`, `onNavigate:(route:string)=>void` | Loading verification, quantity tracking, and loading sign-off |
+| `features/ground-crew/VenueArrivalAndEventHoursModule.tsx` default `VenueArrivalAndEventHoursModule` | `actor:OpsActor`, `onNavigate:(route:string)=>void` | Arrival confirmation, direct rental receipt, and event incidents |
+| `features/ground-crew/EvidenceCaptureModule.tsx` default `EvidenceCaptureModule` | `actor:OpsActor` | Shift photo evidence and custom fabrication verification links |
+| `features/ground-crew/WarehouseArrivalAndReturnAuditModule.tsx` default `WarehouseArrivalAndReturnAuditModule` | `actor:OpsActor` | Return checklist, direct rental handback, and return damage reports |
 
 `go` means `(r:Route)=>void`; callbacks without listed arguments return void.
 Check actual types before extending these APIs.
@@ -410,6 +481,7 @@ Check actual types before extending these APIs.
 - Audit: `AuditBody`, `EventDrawer`, display normalization helpers.
 - Overview: `Insights`, `QuickTasks`, `Calendar`, `Toasts`.
 - OverviewExtras: `Month`, `useOutside`.
+- EventManager: `LoadingState`; PitchesView: `StatusRow`; BriefStep: `DateTime`.
 - AdminDashboardCards: `CardHeader`, `RangeSelect`, `CoverageNote`, `TimeChart`,
   path helpers and role presentation map.
 - Projects: `ProjectIcon`; Settings: `Profile`, `Security`, `AppSettings`.
@@ -438,3 +510,27 @@ Do not export every private helper or reorganize the project during a feature.
 10. Existing stateful helpers may have side effects (demo seeding, storage,
     session changes). Reusing their visuals doesn't authorize those side effects
     in another feature.
+
+## 10. Refactoring and verification status
+
+- **Automated Verification:**
+  - TypeScript compilation (`pnpm exec tsc --noEmit`): PASSED with code 0 (zero errors).
+  - Production Vite build (`pnpm build`): PASSED with code 0 (assets compiled to `dist/`).
+  - Prototype tree-shaking: PASSED (`PrototypeTools` verified absent from production bundle).
+  - Regression test suites (13 scripts): ALL PASSED with code 0:
+    1. `verify-audit-security.mjs`
+    2. `verify-client-brief.mjs`
+    3. `verify-notifications.mjs`
+    4. `verify-operations-store.mjs`
+    5. `verify-refactor-flows.mjs`
+    6. `verify-remove-sample-users.mjs`
+    7. `verify-summary-comparison-preview.mjs`
+    8. `verify-summary-demo.mjs`
+    9. `verify-summary-snapshots.mjs`
+    10. `verify-summary-trends.mjs`
+    11. `verify-time-picker.mjs`
+    12. `verify-time-windows.mjs`
+    13. `verify-user-distribution.mjs`
+- **Git Worktree Resolution:** Verified repository configuration (`git rev-parse --is-inside-work-tree: true`, `core.worktree` linked to `C:/Users/adndnys/Downloads/LUMIERE FRONTEND`). `git status -s` and `git diff --stat` execute cleanly.
+- **Automated Browser Subagent Status:** BLOCKED (`DevToolsActivePort: ENOENT: no such file or directory` — host Chrome session is running without remote debugging flags).
+- **User Manual Frontend Verification:** Attributed separately as user-owned browser verification on `http://localhost:8443` for MoodBoardCanvas interactions and full warehouse operations lifecycle.

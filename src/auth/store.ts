@@ -9,9 +9,10 @@
 import { passwordPolicy } from './passwordPolicy'
 import { prototypeStorageLimits } from './prototypeStorageLimits'
 import { removeSampleUsers } from './removeSampleUsers'
-import type { SummarySnapshot } from './summarySnapshots'
+import type { SummarySnapshot } from '../dashboard/summarySnapshots'
 
 export const STORE_VERSION = 1
+export const CURRENT_DEMO_ACCOUNTS_MIGRATION = 2
 const STORAGE_KEY = 'lumiere.demo.store'
 
 /* ---------- Roles ---------- */
@@ -196,6 +197,7 @@ export interface AuditEvent {
 
 export interface DemoState {
   version: number
+  demoAccountsMigrationVersion?: number
   summaryDemoSeededAt?: number
   additionalDemoUsersSeededAt?: number
   roleRankingDemoSeededAt?: number
@@ -261,6 +263,9 @@ const SEED: { email: string; role: Role; displayName: string; firstName: string;
   { email: 'eventmanager@demo.com', role: 'Event Manager', displayName: 'Demo Event Manager', firstName: 'Demo', lastName: 'Event Manager' },
   { email: 'warehouseops@demo.com', role: 'Warehouse Operations Manager', displayName: 'Demo Warehouse Operations Manager', firstName: 'Demo', lastName: 'Warehouse Operations Manager' },
   { email: 'crew@demo.com', role: 'Ground Crew', displayName: 'Demo Ground Crew', firstName: 'Demo', lastName: 'Ground Crew' },
+  { email: 'crew1@demo.com', role: 'Ground Crew', displayName: 'Demo Ground Crew 1', firstName: 'Demo', lastName: 'Ground Crew 1' },
+  { email: 'crew2@demo.com', role: 'Ground Crew', displayName: 'Demo Ground Crew 2', firstName: 'Demo', lastName: 'Ground Crew 2' },
+  { email: 'crew3@demo.com', role: 'Ground Crew', displayName: 'Demo Ground Crew 3', firstName: 'Demo', lastName: 'Ground Crew 3' },
 ]
 
 function seedState(): DemoState {
@@ -272,6 +277,7 @@ function seedState(): DemoState {
   })
   return {
     version: STORE_VERSION,
+    demoAccountsMigrationVersion: CURRENT_DEMO_ACCOUNTS_MIGRATION,
     nextAccountId: ACCOUNT_ID_BASE + accounts.length + 1,
     accounts,
     credentials,
@@ -300,6 +306,48 @@ function emailOnlyState(value: DemoState): DemoState {
   }) as DemoState
 }
 
+function migrateDemoState(parsed: DemoState): DemoState {
+  const cleaned = removeSampleUsers(emailOnlyState(parsed))
+  if ((cleaned.demoAccountsMigrationVersion ?? 0) < CURRENT_DEMO_ACCOUNTS_MIGRATION) {
+    const now = Date.now()
+    const usedIds = new Set(cleaned.accounts.map((a) => a.id))
+    let nextId = Math.max(cleaned.nextAccountId || 1, ACCOUNT_ID_BASE + SEED.length + 1, ...cleaned.accounts.map((a) => a.id + 1))
+
+    SEED.forEach((seed, index) => {
+      const existing = cleaned.accounts.find((a) => a.email.trim().toLowerCase() === seed.email)
+      if (existing) {
+        existing.role = seed.role
+        existing.status = 'Active'
+        existing.deletedAt = undefined
+        existing.activatedAt = existing.activatedAt ?? now
+        existing.displayName = existing.displayName ?? seed.displayName
+        setPassword(cleaned, existing.id, DEMO_PASSWORD, true)
+      } else {
+        const preferredId = ACCOUNT_ID_BASE + index + 1
+        const allocatedId = !usedIds.has(preferredId) ? preferredId : nextId++
+        usedIds.add(allocatedId)
+        if (allocatedId >= nextId) nextId = allocatedId + 1
+        const account: Account = {
+          id: allocatedId,
+          ...seed,
+          status: 'Active',
+          createdAt: now,
+          lastLoginAt: null,
+          activatedAt: now,
+        }
+        cleaned.accounts.push(account)
+        setPassword(cleaned, account.id, DEMO_PASSWORD, true)
+      }
+    })
+
+    cleaned.nextAccountId = Math.max(nextId, ...cleaned.accounts.map((a) => a.id + 1))
+    cleaned.demoAccountsMigrationVersion = CURRENT_DEMO_ACCOUNTS_MIGRATION
+  } else {
+    cleaned.nextAccountId = Math.max(cleaned.nextAccountId || 1, ...cleaned.accounts.map((a) => a.id + 1))
+  }
+  return cleaned
+}
+
 function load(): DemoState {
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
@@ -307,8 +355,8 @@ function load(): DemoState {
       const parsed = JSON.parse(raw) as DemoState
       // Versioned initialization: keep existing demo changes; only reseed on a schema change.
       if (parsed?.version === STORE_VERSION) {
-        const migrated = removeSampleUsers(emailOnlyState(parsed))
-        save(migrated)
+        const migrated = migrateDemoState(parsed)
+        if (JSON.stringify(migrated) !== raw) save(migrated)
         return migrated
       }
     }
@@ -345,7 +393,7 @@ if (typeof window !== 'undefined') {
       try {
         const next = JSON.parse(e.newValue) as DemoState
         if (next?.version === STORE_VERSION) {
-          state = removeSampleUsers(emailOnlyState(next))
+          state = migrateDemoState(next)
           if (JSON.stringify(state) !== e.newValue) save(state)
         }
       } catch {
@@ -421,9 +469,9 @@ export function verifyPassword(accountId: number, password: string) {
 }
 
 /** Replaces the account's mock credential. Callers must validate the shared password policy first. */
-export function setPassword(draft: DemoState, accountId: number, password: string) {
+export function setPassword(draft: DemoState, accountId: number, password: string, seededDefault = false) {
   const salt = randomToken().slice(0, 16)
-  const next: Credential = { accountId, salt, digest: demoDigest(password, salt), seededDefault: false, updatedAt: Date.now() }
+  const next: Credential = { accountId, salt, digest: demoDigest(password, salt), seededDefault, updatedAt: Date.now() }
   draft.credentials = [...draft.credentials.filter((c) => c.accountId !== accountId), next]
 }
 

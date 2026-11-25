@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { resolve } from 'node:path'
+import { dirname, join, normalize, resolve } from 'node:path'
 import vm from 'node:vm'
 import ts from 'typescript'
 
@@ -17,16 +17,18 @@ const rowHooks = { cursor: 0, values: [] }
 function load(name) {
   const path = resolve(`src/features/event-manager/${name}`)
   if (cache.has(path)) return cache.get(path)
-  const source = readFileSync(path, 'utf8') + (name === 'Editor.tsx' ? '\nexport { BriefStep }' : '')
+  const normalizedName = name.replace(/\\/g, '/')
+  const source = readFileSync(path, 'utf8')
   const compiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2020 },
   }).outputText
   const exports = {}
   cache.set(path, exports)
   vm.runInNewContext(compiled, {
-    exports, localStorage, crypto, structuredClone, URL,
+    exports, localStorage, crypto, structuredClone, URL, TextEncoder,
     require(specifier) {
-      if (name === 'RentalEntry.tsx' && specifier === 'react') return {
+      const isRentalEntry = normalizedName === 'rentals/RentalEntry.tsx' || normalizedName === 'RentalEntry.tsx'
+      if (isRentalEntry && specifier === 'react') return {
         useId: () => 'rental-note-test',
         useState: (initial) => {
           const index = rowHooks.cursor++
@@ -34,27 +36,43 @@ function load(name) {
           return [rowHooks.values[index], (update) => { rowHooks.values[index] = typeof update === 'function' ? update(rowHooks.values[index]) : update }]
         },
       }
-      if (specifier === '../../auth/store') return { emailPattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ }
-      if (specifier === '../../components/ui') return ui
-      if (['./model', './budget', './preview-data', './theme-boards', './theme-templates', './board-assets', './rental-catalog', './event-rentals', './stock-policy'].includes(specifier)) return load(`${specifier.slice(2)}.ts`)
-      if (specifier === './shared') return load('shared.tsx')
-      if (specifier.startsWith('.')) return { default: () => null }
+      if (specifier.includes('auth/store')) return { emailPattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ }
+// Warehouse publishing is outside this isolated client-brief verification.
+      if (specifier.includes('operations/store')) return { publishApprovedEventToWarehouse() {} }
+      if (specifier.includes('components/ui')) return ui
+      if (specifier.endsWith('.css')) return {}
+      const dir = dirname(name)
+      if (specifier.startsWith('.')) {
+        const resolvedRel = normalize(join(dir, specifier)).replace(/\\/g, '/')
+        for (const ext of ['', '.ts', '.tsx']) {
+          const candidate = resolvedRel + ext
+          if (existsSync(resolve(`src/features/event-manager/${candidate}`))) {
+            return load(candidate)
+          }
+        }
+        return { default: () => null }
+      }
       return require(specifier)
     },
   }, { filename: path })
   return exports
 }
-const { parseBudget, formatBudget, validateBudget } = load('budget.ts')
+const { parseBudget, formatBudget, validateBudget } = load('pitch-editor/budget.ts')
 const { newBrief, themes, themePins, assets } = load('model.ts')
 const { validateBrief, clientEmailError, addOneHour, pitchCover, coverAlt, FALLBACK_COVER } = load('shared.tsx')
-const { themePitchBrief } = load('theme-boards.ts')
+const { themePitchBrief } = load('mood-board/theme-boards.ts')
 const { previewStudio } = load('preview-data.ts')
-const { BriefStep } = load('Editor.tsx')
+const { BriefStep } = load('pitch-editor/BriefStep.tsx')
 assert.equal(newBrief().theme, '')
 assert.equal(newBrief().estimatedBudget, undefined)
 assert.equal(pitchCover(newBrief()), '/event-manager-images/planning.jpg', 'blank pitches use the uploaded default photograph')
 assert.match(coverAlt(newBrief()), /Candlelit event reception/)
 assert.equal(pitchCover(newBrief(themes[0].name)), themes[0].image, 'preset covers remain unchanged')
+const customCoverUrl = 'data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA='
+const briefWithCover = { ...newBrief(themes[0].name), title: 'Custom Cover Gala', cover: customCoverUrl }
+assert.equal(pitchCover(briefWithCover), customCoverUrl, 'custom uploaded cover overrides default/theme cover')
+assert.equal(coverAlt(briefWithCover), 'Custom Cover Gala cover image')
+assert.equal(pitchCover({ ...briefWithCover, cover: undefined }), themes[0].image, 'resetting cover falls back to theme cover')
 assert.equal(pitchCover({ ...newBrief(), pins: [{ image: 'https://example.com/custom.jpg' }] }), 'https://example.com/custom.jpg', 'custom board images retain priority')
 assert.equal(pitchCover({ ...newBrief('Custom theme'), registeredTheme: { name: 'Custom theme', cover: 'https://example.com/cover.jpg' } }), 'https://example.com/cover.jpg', 'registered moodboard covers retain priority')
 assert.ok(readFileSync(`public${FALLBACK_COVER}`).length > 0, 'default image is bundled locally')
@@ -202,7 +220,7 @@ assert.equal(dateBrief.end, '2026-11-11T15:15', 'updating start time shifts defa
 
 console.log('PASS: optional client email, inline validation, save/reopen/edit, legacy phone compatibility, themes, budget, dates, input wiring, and responsive grid.')
 
-const { themeTemplate, insertThemePages } = load('theme-templates.ts')
+const { themeTemplate, insertThemePages } = load('mood-board/theme-templates.ts')
 for (const theme of themes) {
   const template = themeTemplate(theme)
   for (const pin of template.pins) {
@@ -234,7 +252,7 @@ assert.equal(restoredTemplate.brief.boardPages.length, 5)
 assert.equal(restoredTemplate.brief.pins.length, themePages.pins.length)
 console.log('PASS: applied theme pages persist when a pitch is saved and reopened.')
 
-const { syncBoardAssets } = load('board-assets.ts')
+const { syncBoardAssets } = load('mood-board/board-assets.ts')
 const assetPin = (asset, id, page = 0) => ({
   id, title: asset.name, image: asset.image, page, x: 10, y: 10, width: 220, rotation: 0,
 })
@@ -290,8 +308,8 @@ assert.equal(reopenedVendors[1].vendorName, undefined, 'legacy rentals are not a
 assert.equal(reopenedVendors[1].name, 'Existing saved rental')
 console.log('PASS: technical vendor/service save and reopen, with legacy rental compatibility.')
 
-const { rentalVendors, rentalCatalogOptions } = load('rental-catalog.ts')
-const { addEventSupplier, isSupplierAdded, rentalDisplay } = load('event-rentals.ts')
+const { rentalVendors, rentalCatalogOptions } = load('rentals/rental-catalog.ts')
+const { addEventSupplier, isSupplierAdded, rentalDisplay } = load('rentals/event-rentals.ts')
 const catalogBefore = JSON.stringify(rentalVendors)
 const supplierOptions = rentalCatalogOptions()
 assert.equal(rentalVendors.length, 6)
@@ -304,7 +322,7 @@ assert.deepEqual(Array.from(supplierOptions, (option) => option.label), [
 ])
 assert.ok(supplierOptions.every((option) => !option.group && !option.items))
 assert.ok(rentalVendors.every((vendor) => !vendor.items), 'supplier source contains no equipment lists')
-const { matchesPickerOption } = load('../../components/SearchableDropdown.tsx')
+const { matchesPickerOption } = load('../../components/ui/SearchableDropdown.tsx')
 assert.ok(matchesPickerOption(supplierOptions[0], 'dalisay'))
 assert.ok(matchesPickerOption(supplierOptions[0], 'audio supplier'))
 assert.ok(!matchesPickerOption(supplierOptions[0], 'speakers'))
@@ -349,8 +367,8 @@ assert.equal(updatedSupplierPitch.brief.rentals[2].note, '')
 assert.equal(updatedSupplierPitch.brief.rentals[1].quantity, 5)
 assert.equal(updatedSupplierPitch.brief.rentals[1].selected, true)
 console.log('PASS: six supplier-only options, name/type search, duplicate prevention including legacy suppliers, notes persistence, and unchanged legacy quote data.')
-const RentalEntry = load('RentalEntry.tsx').default
-let rowEntry = { ...eventSuppliers[2] }
+const RentalEntry = load('rentals/RentalEntry.tsx').default
+let rowEntry = { ...eventSuppliers[2], itemName: 'Legacy PA Package', quantity: 4, contact: 'audio@dalisay.ph' }
 rowEntry.note = ''
 let rowRemoved = false
 const renderSupplierRow = (readOnly = false) => {
@@ -359,8 +377,13 @@ const renderSupplierRow = (readOnly = false) => {
 }
 let supplierNodes = renderSupplierRow()
 assert.ok(supplierNodes.some((node) => node.props.children === 'Dalisay Soundworks'))
-assert.ok(supplierNodes.some((node) => node.props.children === 'Audio supplier'))
-assert.ok(!supplierNodes.some((node) => node.type === 'input' && ['number', 'checkbox'].includes(node.props.type)), 'no quantity or quote/optional controls')
+assert.ok(supplierNodes.some((node) => [node.props.children].flat(Infinity).join('') === 'Audio supplier · audio@dalisay.ph'), 'supplier type and contact details remain visible alongside optional booking reference')
+assert.ok(!supplierNodes.some((node) => node.type === 'input'), 'Event Manager supplier rows omit Rental item description and Requested qty inputs')
+assert.ok(!supplierNodes.some((node) => node.props.children === 'Pending Confirmation'), 'Pending Confirmation badge is hidden in Event Manager')
+assert.ok(!supplierNodes.some((node) => node.props.children === 'Direct-to-venue delivery'), 'Direct-to-venue delivery badge is hidden in Event Manager')
+assert.equal(rowEntry.itemName, 'Legacy PA Package', 'saved legacy rental item description is preserved')
+assert.equal(rowEntry.quantity, 4, 'saved legacy rental quantity is preserved')
+assert.ok(!supplierNodes.some((node) => node.type === 'input' && node.props.type === 'checkbox'), 'no quote/optional checkboxes')
 assert.ok(!supplierNodes.some((node) => node.type === 'textarea'))
 const actions = supplierNodes.find((node) => node.props.className === 'flex shrink-0 items-center gap-2')
 assert.ok(actions, 'note and remove actions share a centered right-hand group')
@@ -382,8 +405,9 @@ assert.equal(rowRemoved, true)
 rowEntry = { ...rowEntry, note: 'Internal discussion only.' }
 supplierNodes = renderSupplierRow(true)
 assert.equal(supplierNodes.find((node) => node.type === 'textarea').props.readOnly, true)
+assert.ok(!supplierNodes.some((node) => node.type === 'input'), 'read-only rentals expose no editable fields')
 assert.ok(!supplierNodes.some((node) => node.props.children === 'Add note' || node.props.children === 'Clear note' || node.props['aria-label'] === 'Remove Dalisay Soundworks'))
-console.log('PASS: supplier row layout, note add/edit/hide/clear, removal, absence of quantity/checkbox controls, and read-only protection.')
+console.log('PASS: supplier row layout, note add/edit/hide/clear, removal, requested quantity editing, absence of quote checkboxes, and read-only protection.')
 const { LOW_STOCK_THRESHOLD_RATIO, stockThreshold, stockWarning, stockConfirmationKey, unconfirmedStockWarnings, withStockState } = load('stock-policy.ts')
 assert.equal(LOW_STOCK_THRESHOLD_RATIO, 0.2)
 assert.equal(stockThreshold(40), 8)
@@ -442,3 +466,18 @@ assert.equal(shortageAgain.brief.replenishments[0].shortage, 1)
 const reduced = await previewStudio(stockUser, { action: 'save', id: editableLow.id, revision: shortageAgain.revision, brief: { ...shortageAgain.brief, requirements: [{ assetId: stockedAsset.id, quantity: 1 }] } })
 assert.equal(reduced.brief.replenishments.length, 0, 'quantity reduction clears resolved records')
 console.log('PASS: threshold boundaries/rounding, dated availability, pending persistence/IDs, duplicate prevention, updates/resolution, and confirmed-request approval flow.')
+
+const { buildPdfFromJpegPages } = load('mood-board/board-export.ts')
+const sampleJpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0xff, 0xd9])
+const multiPdfBytes = buildPdfFromJpegPages([
+  { jpegBytes: sampleJpeg, pixelWidth: 1600, pixelHeight: 900, pageWidthPt: 600, pageHeightPt: 337.5 },
+  { jpegBytes: sampleJpeg, pixelWidth: 1600, pixelHeight: 900, pageWidthPt: 600, pageHeightPt: 337.5 },
+])
+const multiPdfText = Buffer.from(multiPdfBytes).toString('latin1')
+assert.ok(multiPdfText.startsWith('%PDF-1.4\n'), 'PDF starts with %PDF-1.4 header')
+assert.ok(multiPdfText.trimEnd().endsWith('%%EOF'), 'PDF ends with %%EOF')
+assert.ok(multiPdfText.includes('/Count 2'), 'Multi-page PDF records 2 pages')
+assert.equal(multiPdfText.match(/\/Type \/Page\b/g)?.length, 2, 'Multi-page PDF has one /Page object per board page')
+assert.ok(multiPdfText.includes('/MediaBox [0 0 600 337.5]'), 'PDF preserves 16:9 board page dimensions')
+assert.ok(multiPdfText.includes('/Im1 Do') && multiPdfText.includes('/Im2 Do'), 'PDF preserves page order')
+console.log('PASS: multi-page mood board PDF builder output structure, dimensions, and page order.')

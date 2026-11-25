@@ -1,7 +1,7 @@
 # Activity chart preview data
 
 Opening the System Admin overview seeds synthetic sign-in and matching audit records once.
-`seedActivityHistoryDemo.ts` defines varied daily volumes across Manila calendar days
+`src/dashboard/seedActivityHistoryDemo.ts` defines varied daily volumes across Manila calendar days
 3–29 before the seed date, including intentionally empty days. Every record is labeled
 as synthetic chart-preview data in its reason or audit description.
 

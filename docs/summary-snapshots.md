@@ -11,7 +11,7 @@
 
 ## Developer-configured sample comparison mode
 
-`src/auth/summaryComparisonPreview.ts` exports `SUMMARY_COMPARISON_PREVIEW`. It is
+`src/dashboard/summaryComparisonPreview.ts` exports `SUMMARY_COMPARISON_PREVIEW`. It is
 **enabled for this preview**. Set `enabled: false` to require real history only.
 Edit the non-negative integer baseline counts in that config to adjust examples:
 

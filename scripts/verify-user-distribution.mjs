@@ -8,7 +8,7 @@ registerHooks({
     }
   },
 })
-const { CHART_ROLES, CHART_STATUSES, usersByRoleAndStatus } = await import('../src/auth/dashboardMetrics.ts')
+const { CHART_ROLES, CHART_STATUSES, usersByRoleAndStatus } = await import('../src/dashboard/dashboardMetrics.ts')
 const accounts = CHART_ROLES.flatMap(role => CHART_STATUSES.map(status => ({ role, status })))
 accounts.push({ role: 'System Admin', status: 'Active' }, { role: CHART_ROLES[0], status: 'Active', deletedAt: 1 })
 const rows = usersByRoleAndStatus(accounts)
@@ -17,7 +17,7 @@ assert.ok(rows.every(row => row.total === 3))
 for (const status of CHART_STATUSES) assert.equal(rows.reduce((sum, row) => sum + row.counts[status], 0), 4)
 assert.ok(usersByRoleAndStatus([]).every(row => row.total === 0))
 console.log('PASS: four-role distribution, exact status totals, admin/deleted exclusions, and zero intervals')
-const { usersByRole } = await import('../src/auth/dashboardMetrics.ts')
+const { usersByRole } = await import('../src/dashboard/dashboardMetrics.ts')
 const equal = usersByRole(CHART_ROLES.map(role => ({ role, status: 'Active' })))
 assert.ok(equal.every(row => row.count === 1 && row.percentage === 25 && row.largest))
 const mixed = usersByRole(accounts.concat([{ role: CHART_ROLES[0], status: 'Inactive' }]))

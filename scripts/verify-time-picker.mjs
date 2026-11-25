@@ -11,7 +11,7 @@ function load(name) {
   const exports = {}
   cache.set(name, exports)
   const source = ts.transpileModule(
-    readFileSync(`src/components/${name}`, "utf8"),
+    readFileSync(`src/components/ui/${name}`, "utf8"),
     {
       compilerOptions: {
         module: ts.ModuleKind.CommonJS,
@@ -37,7 +37,7 @@ function load(name) {
           dropdownSurface:
             "rounded-lg border border-line bg-card text-foreground shadow-xl",
         }
-      if (specifier === "./OverlayLayer")
+      if (specifier === "./OverlayLayer" || specifier === "../overlay/OverlayLayer")
         return {
           useCloseOnOverlay: () => {},
           useOverlayContainer: () => undefined,

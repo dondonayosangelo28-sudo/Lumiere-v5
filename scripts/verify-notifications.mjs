@@ -47,7 +47,7 @@ function slot(make, dependencies, cleanup) {
 }
 const jsx = (type, props, key) => ({ type, props: props ?? {}, key })
 const compiled = ts.transpileModule(
-  readFileSync("src/components/Notifications.tsx", "utf8"),
+  readFileSync("src/components/ui/Notifications.tsx", "utf8"),
   {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,

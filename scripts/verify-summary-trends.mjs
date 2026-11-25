@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { comparisonTrend, precedingFailedSignIns } from '../src/auth/summaryTrends.ts'
+import { comparisonTrend, precedingFailedSignIns } from '../src/dashboard/summaryTrends.ts'
 
 assert.equal(comparisonTrend(5, null).label, '—')
 assert.equal(comparisonTrend(5, 0).label, 'New')

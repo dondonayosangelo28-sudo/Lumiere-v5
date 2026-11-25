@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
-import { sampleSummaryHistory, summarySnapshot24hAgo, SUMMARY_SAMPLE_MS } from '../src/auth/summarySnapshots.ts'
-import { comparisonTrend } from '../src/auth/summaryTrends.ts'
+import { sampleSummaryHistory, summarySnapshot24hAgo, SUMMARY_SAMPLE_MS } from '../src/dashboard/summarySnapshots.ts'
+import { comparisonTrend } from '../src/dashboard/summaryTrends.ts'
 
 const now = 1_800_000_000_000, day = 86_400_000
 const counts = { totalUsers: 10, activeSessions: 2, lockedAccounts: 1 }

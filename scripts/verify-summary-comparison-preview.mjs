@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { SUMMARY_COMPARISON_PREVIEW, snapshotComparisonTrend } from '../src/auth/summaryComparisonPreview.ts'
+import { SUMMARY_COMPARISON_PREVIEW, snapshotComparisonTrend } from '../src/dashboard/summaryComparisonPreview.ts'
 
 const config = SUMMARY_COMPARISON_PREVIEW
 assert.equal(snapshotComparisonTrend('totalUsers', 8, null).label, '+60%')

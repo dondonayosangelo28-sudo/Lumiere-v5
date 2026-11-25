@@ -1,8 +1,8 @@
 import { emailPattern } from "../../auth/store"
-import { validateBudget } from "./budget"
+import { validateBudget } from "./pitch-editor/budget"
 import { useState, type KeyboardEvent, type ReactNode } from "react"
 import { ImageIcon, type LucideIcon } from "lucide-react"
-import { cx } from "../../components/ui"
+import { cx } from "../../components/ui/ui"
 import { safeImage, themes, type Brief, type Project } from "./model"
 
 export type StudioUser = {
@@ -15,6 +15,7 @@ export const statusLabel: Record<Project["status"], string> = {
   draft: "Draft",
   ready: "For presentation",
   approved: "Approved",
+  cancelled: "Cancelled",
 }
 export function StatusBadge({ status }: { status: Project["status"] }) {
   return (
@@ -40,31 +41,41 @@ export const remoteImage = (src?: string) => !!src && safeImage(src)
 // User-provided default photograph, independent of moodboard presets.
 export const FALLBACK_COVER = "/event-manager-images/planning.jpg"
 
-/** A pitch is always covered by its theme photograph, so every surface shows the same image. */
+/** A pitch is covered by its custom cover (if set) or its theme photograph, so every surface shows the same image. */
 export const pitchCover = (brief: Brief) =>
+  (remoteImage(brief.cover) ? brief.cover : undefined) ??
   registeredPitchTheme(brief)?.cover ??
   themeByName(brief.theme)?.image ??
   brief.pins.find((pin) => remoteImage(pin.image))?.image ??
   FALLBACK_COVER
-export const coverAlt = (brief: Brief) =>
-  pitchCover(brief) === FALLBACK_COVER
+export const coverAlt = (brief: Brief) => {
+  const src = pitchCover(brief)
+  if (brief.cover && src === brief.cover) {
+    return `${brief.title || "Event"} cover image`
+  }
+  return src === FALLBACK_COVER
     ? "Candlelit event reception with hanging greenery, draped fabric and floral tables"
     : themeByName(brief.theme)?.alt ?? `${brief.title || "Event"} inspiration`
+}
 
 export function Visual({
   src,
   label,
   className,
   icon: Icon = ImageIcon,
+  iconSize = 22,
   palette,
   fallbackSrc,
+  framing,
 }: {
   src?: string
   label: string
   className?: string
   icon?: LucideIcon
+  iconSize?: number
   palette?: readonly string[]
   fallbackSrc?: string
+  framing?: { zoom: number; offsetX: number; offsetY: number }
 }) {
   const [loaded, setLoaded] = useState("")
   const [failed, setFailed] = useState<string[]>([])
@@ -86,7 +97,7 @@ export function Visual({
         )}
         aria-hidden
       >
-        <Icon size={22} strokeWidth={1.5} />
+        <Icon size={iconSize} strokeWidth={1.5} />
         {palette && (
           <span className="absolute bottom-2 left-2 flex gap-1">
             {palette.map((c) => (
@@ -100,20 +111,46 @@ export function Visual({
         )}
       </div>
       {show && (
-        <img
-          key={image}
-          src={image}
-          alt=""
-          loading="lazy"
-          referrerPolicy="no-referrer"
-          draggable={false}
-          onLoad={() => setLoaded(image!)}
-          onError={() => setFailed((previous) => [...previous, image!])}
-          className={cx(
-            "absolute inset-0 size-full object-cover transition-opacity",
-            loaded === image ? "opacity-100" : "opacity-0",
-          )}
-        />
+        framing &&
+        (framing.zoom !== 1 || framing.offsetX !== 0 || framing.offsetY !== 0) ? (
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              transform: `translate3d(${framing.offsetX}%, ${framing.offsetY}%, 0) scale(${framing.zoom})`,
+              transformOrigin: "center",
+            }}
+          >
+            <img
+              key={image}
+              src={image}
+              alt=""
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              draggable={false}
+              onLoad={() => setLoaded(image!)}
+              onError={() => setFailed((previous) => [...previous, image!])}
+              className={cx(
+                "absolute inset-0 size-full object-cover transition-opacity",
+                loaded === image ? "opacity-100" : "opacity-0",
+              )}
+            />
+          </div>
+        ) : (
+          <img
+            key={image}
+            src={image}
+            alt=""
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            draggable={false}
+            onLoad={() => setLoaded(image!)}
+            onError={() => setFailed((previous) => [...previous, image!])}
+            className={cx(
+              "absolute inset-0 size-full object-cover transition-opacity",
+              loaded === image ? "opacity-100" : "opacity-0",
+            )}
+          />
+        )
       )}
     </div>
   )

@@ -1,5 +1,6 @@
-import { publishApprovedEventToWarehouse } from '../../operations/store';
-import { validateBudget } from './budget';
+import * as opsStore from '../../operations/store';
+import { isVenueLocation, type VenueLocation } from '../../operations/venue-location';
+import { validateBudget } from './pitch-editor/budget';
 import { assets, themes, type Availability, type Brief, type Project } from './model';
 import { unconfirmedStockWarnings, withStockState } from './stock-policy';
 
@@ -187,6 +188,232 @@ const read = (user: StudioUser): Record[] => {
 };
 
 const write = (user: StudioUser, records: Record[]) => localStorage.setItem(storageKey(user), JSON.stringify(records));
+
+/**
+ * Recovers a saved venue pin from Event Manager `{ project, audit }` records
+ * matched strictly by `projectId` or `eventId` (no title matching).
+ */
+export function findSavedProjectVenueLocation(lookup: {
+  projectId?: string;
+  eventId?: string;
+}): VenueLocation | undefined {
+  const candidateIds = new Set(
+    [lookup.projectId, lookup.eventId]
+      .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+      .map(id => id.trim()),
+  );
+  if (candidateIds.size === 0) return undefined;
+
+  for (const handoff of pendingHandoffs.values()) {
+    const project = handoff?.project;
+    if (project && candidateIds.has(project.id) && isVenueLocation(project.brief?.venueLocation)) {
+      return project.brief.venueLocation;
+    }
+  }
+
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const prefix = `${namespace}:`;
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (!key || !key.startsWith(prefix)) continue;
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const records = JSON.parse(raw) as Array<{ project?: Project; audit?: Audit[] }>;
+        if (!Array.isArray(records)) continue;
+        const matched = records.find(
+          record =>
+            typeof record?.project?.id === 'string' &&
+            candidateIds.has(record.project.id.trim()),
+        );
+        if (matched?.project && isVenueLocation(matched.project.brief?.venueLocation)) {
+          return matched.project.brief.venueLocation;
+        }
+      }
+    }
+  } catch {
+    // Ignore storage read errors
+  }
+
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      const handoffPrefix = 'lumiere-approval-handoff-v1:';
+      for (let i = 0; i < sessionStorage.length; i += 1) {
+        const key = sessionStorage.key(i);
+        if (!key || !key.startsWith(handoffPrefix)) continue;
+        const raw = sessionStorage.getItem(key);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw) as { project?: Project } | null;
+        if (
+          parsed?.project &&
+          typeof parsed.project.id === 'string' &&
+          candidateIds.has(parsed.project.id.trim()) &&
+          isVenueLocation(parsed.project.brief?.venueLocation)
+        ) {
+          return parsed.project.brief.venueLocation;
+        }
+      }
+    }
+  } catch {
+    // Ignore sessionStorage read errors
+  }
+
+  return undefined;
+}
+
+export type PendingApprovalHandoff = {
+  project: Project;
+  auditEntry: Audit;
+  eventManagerSaved: boolean;
+  warehouseSaved: boolean;
+};
+
+export class ApprovalHandoffError extends Error {
+  handoff: PendingApprovalHandoff;
+  constructor(message: string, handoff: PendingApprovalHandoff) {
+    super(message);
+    this.name = 'ApprovalHandoffError';
+    this.handoff = handoff;
+  }
+}
+
+const pendingHandoffs = new Map<string, PendingApprovalHandoff>();
+const handoffSessionKey = (user: StudioUser, projectId: string) =>
+  `lumiere-approval-handoff-v1:${user.email.trim().toLowerCase()}:${projectId}`;
+
+function savePendingHandoff(user: StudioUser, handoff: PendingApprovalHandoff) {
+  const key = handoffSessionKey(user, handoff.project.id);
+  pendingHandoffs.set(key, handoff);
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(key, JSON.stringify(handoff));
+    }
+  } catch {
+    // ignore sessionStorage quota failures
+  }
+}
+
+function clearPendingHandoff(user: StudioUser, projectId: string) {
+  const key = handoffSessionKey(user, projectId);
+  pendingHandoffs.delete(key);
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem(key);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export function getPendingApprovalHandoff(user: StudioUser, projectId: string): PendingApprovalHandoff | null {
+  const key = handoffSessionKey(user, projectId);
+  const inMem = pendingHandoffs.get(key);
+  if (inMem) return inMem;
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      const raw = sessionStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw) as PendingApprovalHandoff;
+        if (parsed?.project?.id === projectId) {
+          pendingHandoffs.set(key, parsed);
+          return parsed;
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function executeApprovalHandoff(user: StudioUser, handoff: PendingApprovalHandoff): Project {
+  const next: PendingApprovalHandoff = { ...handoff };
+
+  if (!next.eventManagerSaved) {
+    try {
+      const currentRecords = read(user);
+      const existing = currentRecords.find(r => r.project.id === next.project.id);
+      if (existing?.project.status === 'approved' && existing.project.revision > next.project.revision) {
+        // Do not overwrite a newer persisted Event Manager approval with a stale pending handoff
+        next.project = existing.project;
+        next.eventManagerSaved = true;
+      } else {
+        const remaining = currentRecords.filter(r => r.project.id !== next.project.id);
+        const alreadyHasAudit = (existing?.audit ?? []).some(
+          a => a.at === next.auditEntry.at && a.revision === next.auditEntry.revision,
+        );
+        const nextAudit = alreadyHasAudit
+          ? existing!.audit
+          : [next.auditEntry, ...(existing?.audit ?? [])];
+        write(user, [{ project: next.project, audit: nextAudit }, ...remaining]);
+        next.eventManagerSaved = true;
+      }
+    } catch {
+      next.eventManagerSaved = false;
+    }
+  }
+
+  if (!next.warehouseSaved) {
+    try {
+      const hadWarning = Boolean(opsStore.getOperationsPersistenceWarning?.());
+      if (hadWarning && opsStore.retryPersistOperationsStore) {
+        const retryRes = opsStore.retryPersistOperationsStore();
+        if (!retryRes.ok || opsStore.getOperationsPersistenceWarning?.()) {
+          next.warehouseSaved = false;
+        }
+      }
+      if (!opsStore.getOperationsPersistenceWarning?.()) {
+        opsStore.publishApprovedEventToWarehouse(next.project, user);
+        const hasPersistenceWarning = Boolean(opsStore.getOperationsPersistenceWarning?.());
+        const hasOrderInStore =
+          typeof opsStore.readOperationsStore === 'function'
+            ? opsStore.readOperationsStore().orderRequests.some(o => o.eventId === next.project.id)
+            : true;
+        next.warehouseSaved = !hasPersistenceWarning && hasOrderInStore;
+      } else {
+        next.warehouseSaved = false;
+      }
+    } catch {
+      next.warehouseSaved = false;
+    }
+  }
+
+  if (next.eventManagerSaved && next.warehouseSaved) {
+    clearPendingHandoff(user, next.project.id);
+    return next.project;
+  }
+
+  savePendingHandoff(user, next);
+  const msg = !next.eventManagerSaved && !next.warehouseSaved
+    ? 'Approval handoff failed: neither Event Manager nor Warehouse records could be saved to browser storage. Retry handoff once storage space is available.'
+    : !next.eventManagerSaved
+      ? 'Approval handoff incomplete: Warehouse order saved, but Event Manager approval could not be saved to browser storage. Retry handoff to finish saving.'
+      : 'Approval handoff incomplete: Event Manager approval saved, but Warehouse order could not be saved to browser storage. Retry handoff to finish publishing.';
+  throw new ApprovalHandoffError(msg, next);
+}
+
+export async function retryApprovalHandoff(user: StudioUser, projectId: string): Promise<Project> {
+  const pending = getPendingApprovalHandoff(user, projectId);
+  if (pending) {
+    return executeApprovalHandoff(user, pending);
+  }
+  const existing = read(user).find(r => r.project.id === projectId);
+  if (existing?.project.status === 'approved') {
+    const auditEntry = existing.audit[0] ?? {
+      actor: user.name,
+      action: 'Client approval recorded',
+      at: existing.project.approvedAt || new Date().toISOString(),
+      revision: existing.project.revision,
+    };
+    return executeApprovalHandoff(user, {
+      project: existing.project,
+      auditEntry,
+      eventManagerSaved: true,
+      warehouseSaved: false,
+    });
+  }
+  throw new Error('No pending approval handoff found to retry.');
+}
 const overlaps = (a: Brief, b: Brief, buffer = 0) =>
   Date.parse(a.start) - buffer < Date.parse(b.end) + buffer &&
   Date.parse(b.start) - buffer < Date.parse(a.end) + buffer;
@@ -221,7 +448,11 @@ export function previewStudio(user: StudioUser, body: Extract<Action, { action: 
 export function previewStudio(user: StudioUser, body: Extract<Action, { action: 'delete' }>): Promise<void>;
 export async function previewStudio(user: StudioUser, body?: Action): Promise<Project[] | Project | Availability[] | void> {
   const records = read(user);
-  if (!body) return records.map(record => record.project);
+  if (!body) {
+    return records
+      .filter(record => record.project.status !== 'cancelled')
+      .map(record => record.project);
+  }
   if (body.action === 'save' && !body.id && body.eventId && records.some(record => record.project.id === body.eventId)) {
     throw new Error('This pitch has already been saved. Reopen its latest revision.');
   }
@@ -233,8 +464,26 @@ export async function previewStudio(user: StudioUser, body?: Action): Promise<Pr
 
   // D01 #4 & Scenario 9: Idempotent repeat/retry of Record Client Approval resolves to the same request
   if (body.action === 'approve' && existing?.project.status === 'approved') {
-    publishApprovedEventToWarehouse(existing.project, user);
-    return existing.project;
+    const opsWarning = Boolean(opsStore.getOperationsPersistenceWarning?.());
+    const hasOrder = Boolean(
+      opsStore.readOperationsStore?.()?.orderRequests?.some(o => o.eventId === existing.project.id),
+    );
+    if (!opsWarning && hasOrder) {
+      clearPendingHandoff(user, existing.project.id);
+      return existing.project;
+    }
+    const auditEntry = existing.audit[0] ?? {
+      actor: user.name,
+      action: 'Client approval recorded',
+      at: existing.project.approvedAt || new Date().toISOString(),
+      revision: existing.project.revision,
+    };
+    return executeApprovalHandoff(user, {
+      project: existing.project,
+      auditEntry,
+      eventManagerSaved: true,
+      warehouseSaved: false,
+    });
   }
 
   if (body.id && (!existing || existing.project.revision !== body.revision)) {
@@ -279,10 +528,233 @@ export async function previewStudio(user: StudioUser, body?: Action): Promise<Pr
     }
     project = { ...existing.project, status: 'approved', revision: existing.project.revision + 1, updatedAt: now, approvedAt: now, approvalNote: note };
     action = 'Client approval recorded';
-    // D01 & D02: Publish approved event, stock items, custom fabrication specs, and rentals to Warehouse -> Order Requests
-    publishApprovedEventToWarehouse(project, user);
+    const entry = { actor: user.name, action, at: now, revision: project.revision };
+    return executeApprovalHandoff(user, {
+      project,
+      auditEntry: entry,
+      eventManagerSaved: false,
+      warehouseSaved: false,
+    });
   }
   const entry = { actor: user.name, action, at: now, revision: project.revision };
   write(user, [{ project, audit: [entry, ...(existing?.audit ?? [])] }, ...remaining]);
   return project;
+}
+
+export type PendingCancellationHandoff = {
+  projectId: string
+  reason: string
+  cancelledProject: Project
+  auditEntry: Audit
+  warehouseCancelled: boolean
+  eventManagerSaved: boolean
+}
+
+export class CancellationHandoffError extends Error {
+  handoff: PendingCancellationHandoff
+  constructor(message: string, handoff: PendingCancellationHandoff) {
+    super(message)
+    this.name = 'CancellationHandoffError'
+    this.handoff = handoff
+  }
+}
+
+const pendingCancellations = new Map<string, PendingCancellationHandoff>()
+const cancelSessionKey = (user: StudioUser, projectId: string) =>
+  `lumiere-cancel-handoff-v1:${user.email.trim().toLowerCase()}:${projectId}`
+
+function savePendingCancellation(user: StudioUser, handoff: PendingCancellationHandoff) {
+  const key = cancelSessionKey(user, handoff.projectId)
+  pendingCancellations.set(key, handoff)
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(key, JSON.stringify(handoff))
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export function getPendingCancellationHandoff(
+  user: StudioUser,
+  projectId: string,
+): PendingCancellationHandoff | null {
+  const key = cancelSessionKey(user, projectId)
+  const mem = pendingCancellations.get(key)
+  if (mem) return mem
+  try {
+    if (typeof sessionStorage === 'undefined') return null
+    const raw = sessionStorage.getItem(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as PendingCancellationHandoff
+    pendingCancellations.set(key, parsed)
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function clearPendingCancellation(user: StudioUser, projectId: string) {
+  const key = cancelSessionKey(user, projectId)
+  pendingCancellations.delete(key)
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem(key)
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function executeCancellationHandoff(
+  user: StudioUser,
+  handoff: PendingCancellationHandoff,
+): Project {
+  const next: PendingCancellationHandoff = { ...handoff }
+
+  // 1. Cancel linked Warehouse order & release stock reservations (idempotent)
+  if (!next.warehouseCancelled) {
+    try {
+      const hadWarning = Boolean(opsStore.getOperationsPersistenceWarning?.())
+      if (hadWarning && opsStore.retryPersistOperationsStore) {
+        opsStore.retryPersistOperationsStore()
+      }
+      if (!opsStore.getOperationsPersistenceWarning?.()) {
+        const whRes = opsStore.cancelApprovedEventInWarehouse(
+          next.projectId,
+          { name: user.name || 'Event Manager', email: user.email },
+          next.reason,
+        )
+        if (!whRes.ok) {
+          throw new Error(whRes.error)
+        }
+        const hasPersistenceWarning = Boolean(opsStore.getOperationsPersistenceWarning?.())
+        next.warehouseCancelled = !hasPersistenceWarning
+      } else {
+        next.warehouseCancelled = false
+      }
+    } catch (err) {
+      if (
+        err instanceof Error &&
+        !/storage|persist|quota/i.test(err.message)
+      ) {
+        throw err
+      }
+      next.warehouseCancelled = false
+    }
+  }
+
+  // 2. Mark Event Manager project as cancelled while preserving audit history
+  if (!next.eventManagerSaved) {
+    try {
+      const currentRecords = read(user)
+      const existing = currentRecords.find(r => r.project.id === next.projectId)
+      if (!existing) {
+        next.eventManagerSaved = true
+      } else if (existing.project.status === 'cancelled') {
+        next.cancelledProject = existing.project
+        next.eventManagerSaved = true
+      } else {
+        const remaining = currentRecords.filter(r => r.project.id !== next.projectId)
+        const alreadyHasAudit = existing.audit.some(
+          a =>
+            a.at === next.auditEntry.at &&
+            a.revision === next.auditEntry.revision &&
+            a.action === next.auditEntry.action,
+        )
+        const nextAudit = alreadyHasAudit ? existing.audit : [next.auditEntry, ...existing.audit]
+        write(user, [{ project: next.cancelledProject, audit: nextAudit }, ...remaining])
+        next.eventManagerSaved = true
+      }
+    } catch {
+      next.eventManagerSaved = false
+    }
+  }
+
+  if (next.warehouseCancelled && next.eventManagerSaved) {
+    clearPendingCancellation(user, next.projectId)
+    return next.cancelledProject
+  }
+
+  savePendingCancellation(user, next)
+  const msg = !next.warehouseCancelled && !next.eventManagerSaved
+    ? 'Cancellation failed: neither Warehouse reservations nor Event Manager record could be saved. Retry cancellation.'
+    : !next.warehouseCancelled
+      ? 'Cancellation incomplete: Event Manager record updated, but Warehouse reservation release failed to save. Retry cancellation.'
+      : 'Cancellation incomplete: Warehouse reservations released, but Event Manager record could not be saved to browser storage. Retry cancellation.'
+  throw new CancellationHandoffError(msg, next)
+}
+
+export async function cancelApprovedProject(
+  user: StudioUser,
+  projectId: string,
+  reason: string,
+): Promise<Project> {
+  const cleanReason = reason.trim()
+  if (!cleanReason) {
+    throw new Error('Enter a cancellation reason before confirming.')
+  }
+
+  const pending = getPendingCancellationHandoff(user, projectId)
+  if (pending) {
+    return executeCancellationHandoff(user, pending)
+  }
+
+  const existing = read(user).find(r => r.project.id === projectId)
+  if (!existing) throw new Error('Event record not found.')
+  if (existing.project.status === 'cancelled') {
+    const whRes = opsStore.cancelApprovedEventInWarehouse(
+      projectId,
+      { name: user.name || 'Event Manager', email: user.email },
+      cleanReason,
+    )
+    if (!whRes.ok) throw new Error(whRes.error)
+    return existing.project
+  }
+  if (existing.project.status !== 'approved') {
+    throw new Error('Only approved events can be cancelled through this action.')
+  }
+
+  const evalRes = opsStore.evaluateApprovedEventCancellation(
+    opsStore.readOperationsStore(),
+    projectId,
+  )
+  if (!evalRes.canCancel) {
+    throw new Error(
+      evalRes.reason || 'Event cannot be cancelled due to downstream Warehouse activity.',
+    )
+  }
+
+  const now = new Date().toISOString()
+  const cancelledProject: Project = {
+    ...existing.project,
+    status: 'cancelled',
+    updatedAt: now,
+  }
+  const auditEntry: Audit = {
+    actor: user.name || 'Event Manager',
+    action: `Approved event cancelled: ${cleanReason}`,
+    at: now,
+    revision: existing.project.revision,
+  }
+
+  return executeCancellationHandoff(user, {
+    projectId,
+    reason: cleanReason,
+    cancelledProject,
+    auditEntry,
+    warehouseCancelled: false,
+    eventManagerSaved: false,
+  })
+}
+
+export async function retryCancellationHandoff(
+  user: StudioUser,
+  projectId: string,
+): Promise<Project> {
+  const pending = getPendingCancellationHandoff(user, projectId)
+  if (!pending) {
+    throw new Error('No pending cancellation found to retry.')
+  }
+  return executeCancellationHandoff(user, pending)
 }
